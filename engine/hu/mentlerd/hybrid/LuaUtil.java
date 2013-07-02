@@ -119,7 +119,7 @@ public class LuaUtil {
 						return "global "+proto.constants[ getBx(code) ];
 					
 					case OP_GETUPVAL: //Upvalue
-						return proto.upvalues[ getBx(code) ];
+						return proto.upvalues[ getB9(code) ];
 						
 					case OP_SELF: //Self call, it is a 'method'
 						return "method "+proto.constants[ getC9(code) -256 ];
