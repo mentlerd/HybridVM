@@ -375,7 +375,7 @@ public class AsmHelper {
 			if ( numberConvertMap.containsKey(clazz) )
 				return false;
 			
-			if ( clazz.equals(BOOLEAN) || clazz.equals(CHAR) )
+			if ( clazz.equals(CHAR) )
 				return false;
 			
 			return true;
