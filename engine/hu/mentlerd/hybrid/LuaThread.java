@@ -436,17 +436,15 @@ public class LuaThread {
 						B = getB9(code);
 						C = getC9(code);
 
-						Object result = frame.get(B);
-						String string = LuaUtil.rawToString(result); //Check if the starting argument can be 'cast' to a string
-						if ( string != null )
-							result = string;
+						Object result = "";
+						String string;
 						
-						for ( int index = B +1; index <= C; index++ ){
-							Object concat = frame.get(index); //Check if the next argument can be primitively concated
+						for ( int index = B; index <= C; index++ ){ //Optimize for multi string concat
+							Object concat = frame.get(index); 
 							
 							string = LuaUtil.rawToString(concat);
 							
-							if ( result instanceof String && string != null ){ //Optimize for multi string concat
+							if ( result instanceof String && string != null ){ 
 								StringBuilder sb = new StringBuilder( (String) result );
 								
 								while( string != null ){
@@ -468,7 +466,7 @@ public class LuaThread {
 								Object meta = getMetaValue(concat, "__concat");
 								
 								if ( !isCallable(meta) )
-									throw LuaUtil.slotError(frame, frame.localBase + index, "attempt to concenate");
+									throw LuaUtil.slotError(frame, index, "attempt to concenate");
 							
 								result = call( meta, result, concat );
 							}
