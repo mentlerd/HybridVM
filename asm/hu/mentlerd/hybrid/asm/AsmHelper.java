@@ -190,41 +190,6 @@ public class AsmHelper {
 		return null;
 	}
 
-/*
-	public static Type getCoercedType( Type type ){
-		switch( type.getSort() ){
-			
-			//Primitives
-			case Type.BOOLEAN:	return TYPE_BOOLEAN;
-			case Type.CHAR:		return TYPE_STRING;
-			
-			//Java numbers are coerced from Double objects
-			case Type.BYTE:		
-			case Type.SHORT:
-			case Type.INT:
-			case Type.FLOAT:
-			case Type.LONG:
-			case Type.DOUBLE:
-				return TYPE_DOUBLE;
-			
-			case Type.OBJECT:
-				String clazz = type.getInternalName();
-
-				//Non primitive numbers object are coerced from Double objects
-				if ( numberConvertMap.containsKey(clazz) )
-					return TYPE_DOUBLE;
-				
-				return type;
-				
-			//Arrays are coerced from LuaTables
-			case Type.ARRAY:
-				return TYPE_TABLE;
-		}
-				
-		return null;
-	}
-*/
-	
 	public static void varToLua( MethodVisitor mv, Type type ){	
 		switch( type.getSort() ){
 		
@@ -397,15 +362,48 @@ public class AsmHelper {
 
 		}
 	}
+
+	
+	/*
+	 * Basically, everything can be null what is not being processed after,
+	 *  so everything aside primitive types, and post processed number objects
+	 */
+	public static boolean canBeNull( Type param ){
+		if ( param.getSort() == Type.OBJECT ){
+			String clazz = param.getInternalName();
+			
+			if ( numberConvertMap.containsKey(clazz) )
+				return false;
+			
+			if ( clazz.equals(BOOLEAN) || clazz.equals(CHAR) )
+				return false;
+			
+			return true;
+		}
+		
+		return false; //Primitives
+	}
+	
+	//Note this function expects to find a CallFrame on the stack
+	public static void getParamToVar( MethodVisitor mv, int index, Class<?> param ){
+		Type type    = Type.getType(param);
+		Type coerced = Type.getType(getCoercedClass(param));	
+		
+		//Pull the parameter on the stack
+		mv.visitIntInsn(SIPUSH, index); //CallFrame.getArg( 0, clazz )
+		mv.visitLdcInsn(coerced);
+		
+		if ( canBeNull(type) )
+			mv.visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArgNull", GET_ARG_C);
+		else
+			mv.visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArg", GET_ARG_C);
+		
+		luaToVar(mv, type);
+	}
+
 	
 	//Lua calls
-	public static void frameGetArg( MethodVisitor mv, int index, Type clazz ){		
-		mv.visitIntInsn(SIPUSH, index); //CallFrame.getArg( 0, clazz )
-		mv.visitLdcInsn(clazz);
-		mv.visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArgNull", GET_ARG_C);
-		
-		mv.visitTypeInsn(CHECKCAST, clazz.getInternalName());
-	}
+	
 	public static void framePush( MethodVisitor mv ){
 		mv.visitMethodInsn(INVOKEVIRTUAL, FRAME, "push", PUSH);
 	}
@@ -424,7 +422,11 @@ public class AsmHelper {
 		if ( !isStatic ){
 			mv.visitInsn(DUP);
 
-			frameGetArg(mv, 0, clazz);			
+			mv.visitInsn(ICONST_0); //CallFrame.getArg( 0, clazz )
+			mv.visitLdcInsn(clazz);
+			mv.visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArg", GET_ARG_C);
+			
+			mv.visitTypeInsn(CHECKCAST, clazz.getInternalName());
 				
 			pCallType = INVOKEVIRTUAL;
 		}
@@ -442,15 +444,12 @@ public class AsmHelper {
 			
 			//Put variables to the stack as usual
 			for ( int pIndex = 0; pIndex < pClasses.length; pIndex++ ){ //Setup arguments
-				Type param   = Type.getType( pClasses[pIndex] );
-				Type coerced = Type.getType( getCoercedClass(pClasses[pIndex]) );
 				
 				//CallFrame.getArg( int, coercedClass )
 				//In case of non static calls, offset arguments by 1
 				mv.visitVarInsn(ALOAD, 2);
-				frameGetArg(mv, isStatic ? pIndex : pIndex +1, coerced);
-	
-				luaToVar(mv, param); //Convert to lua value
+				
+				getParamToVar(mv, isStatic ? pIndex : pIndex +1, pClasses[pIndex]);	
 			}
 			
 			//Call

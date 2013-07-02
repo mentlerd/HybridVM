@@ -227,14 +227,10 @@ public class ClassAccessorFactory {
 						mv.visitInsn(DUP);
 						
 						//Unpack, and coerce arguments
-						for ( int pIndex = 0; pIndex < pClasses.length; pIndex++ ){
-							Type pType   = Type.getType( pClasses[pIndex] );
-							Type coerced = Type.getType( AsmHelper.getCoercedClass(pClasses[pIndex]) );
-							
+						for ( int pIndex = 0; pIndex < pClasses.length; pIndex++ ){	
 							mv.visitVarInsn(ALOAD, 2);
-							AsmHelper.frameGetArg(mv, pIndex, coerced);
 							
-							AsmHelper.luaToVar(mv, pType);
+							AsmHelper.getParamToVar(mv, pIndex, pClasses[pIndex]);
 						}
 						
 						//Initialize the object, and push back
