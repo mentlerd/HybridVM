@@ -1,5 +1,8 @@
 bin
-lib
+
+local
+test
+.settings
 
 *.class
 
