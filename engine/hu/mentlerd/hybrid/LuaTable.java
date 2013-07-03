@@ -66,7 +66,7 @@ public class LuaTable {
 			Double index	= (Double) key;
 			int slot		= index.intValue();
 			
-			if ( slot < arrayCapacity ){
+			if ( index == slot && 0 <= slot && slot < arrayCapacity ){
 				Object value = array[slot];
 				
 				if ( value != null )
@@ -92,8 +92,9 @@ public class LuaTable {
 		
 		int slot = getHashSlot(key);
 		
-		if ( value == null && hashKeys[slot] != null ){
-			clearHashSlot(slot);
+		if ( value == null ){
+			if ( hashKeys[slot] != null )
+				clearHashSlot(slot);
 		} else {
 			fillHashSlot(slot, key, value);
 		}
@@ -104,21 +105,58 @@ public class LuaTable {
 	}
 	
 	public Object nextKey( Object key ){
-		int slot = 0;
-		
-		if ( key != null ){ //Check if the key is in there
-			slot = getHashSlot(key);
-
-			if ( hashKeys[slot] == null )
-				throw new LuaException("invalid key to 'next'");
+		int arrayIndex	= -1; //Disallow search
+		int hashSlot	=  0;
+	
+		if ( key == null ){
+			arrayIndex	= 0; //Allow searching for values
+		} else {
 			
-			slot++;
+			//Check for starting index
+			if ( key instanceof Double ){
+				Double slot	= (Double) key;
+				int index	= slot.intValue();
+				
+				if ( index == slot && 0 <= index && index < arrayCapacity ){
+					arrayIndex	= index;
+					hashSlot	= -1;
+					
+					if ( array[arrayIndex] == null )
+						throw new LuaException("invalid key to 'next'");
+					
+					arrayIndex++;
+				}
+			}
+			
+			//Check hash slot (if allowed)
+			if ( hashSlot != -1 ){
+				hashSlot = getHashSlot(key);
+			
+				if ( hashKeys[hashSlot] == null )
+					throw new LuaException("invalid key to 'next'");
+				
+				hashSlot++;
+			}
 		}
 		
-		for ( int index = slot; index < hashCapacity; index++ ){ //Find the next filled slot
+		//Find the next array value (If allowed)
+		if ( arrayIndex != -1 ){
+			for( int index = arrayIndex; index < arrayCapacity; index++ ){
+				if ( array[index] != null )
+					return Double.valueOf(index);
+			}
+			
+			//No more keys in the array, allow hash search
+			hashSlot = 0;
+		}
+		
+		//Find the next hash slot
+		for ( int index = hashSlot; index < hashCapacity; index++ ){ //Find the next filled slot
 			if ( hashKeys[index] != null )
 				return hashKeys[index];
 		}
+
+		//Absolute nothing found
 		return null;
 	}
 	
