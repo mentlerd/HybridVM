@@ -128,7 +128,7 @@ public class Coroutine {
 	}
 
 	public CallFrame pushCallFrame( LuaClosure closure, int localBase, int returnBase, int argCount ){
-		setFrameTop(frameStackTop +1);
+		pullNewFrame();
 		
 		CallFrame frame = getCurrentFrame();
 			frame.setup(closure, localBase, returnBase, argCount);
@@ -136,54 +136,41 @@ public class Coroutine {
 		return frame;
 	}
 	public CallFrame pushJavaFrame( Callable func, int localBase, int returnBase, int argCount ){
-		setFrameTop(frameStackTop +1);
+		pullNewFrame();
 		
 		CallFrame frame = getCurrentFrame();
-			frame.closure 	= null;
+			frame.setup(null, localBase, returnBase, argCount);
+			
 			frame.function	= func;
-			
-			frame.localBase		= localBase;
-			frame.returnBase	= returnBase;
-			frame.argCount		= argCount;
-			
 			frame.canYield	= false;
 			
 		return frame;
 	}
 	
-	public void popCallFrame(){
+	protected void popCallFrame(){
 		if ( frameStackTop == 0 )
 			throw new LuaException("Frame stack undeflow");
 		
-		setFrameTop(frameStackTop -1);
+		CallFrame popped = getCurrentFrame();
+			popped.closure	= null;
+			popped.function	= null;
+			
+		frameStackTop--;
 	}
 	
-	protected void setFrameTop( int newTop ){
-		if ( frameStackTop < newTop ){
-			//Ensure stack size
-			int size = frameStack.length;
+	protected void pullNewFrame(){
+		int newTop 	= frameStackTop +1;
+		int size	= frameStack.length;
+		
+		if ( newTop > MAX_FRAME_SIZE )
+			throw new LuaException("Frame stack overflow");
+		
+		if ( size < newTop ){ //Realloc
+			size <<= 1;
 			
-			if ( size < newTop ){ //Realloc
-				if ( newTop > MAX_FRAME_SIZE )
-					throw new LuaException("Frame stack overflow");
-				
-				while( size < newTop )
-					size <<= 1;
-				
-				CallFrame[] realloc = new CallFrame[size];
-				System.arraycopy(frameStack, 0, realloc, 0, frameStack.length);	
-				frameStack = realloc;
-			}
-		} else {
-			//Reset popped frames
-			for ( int index = newTop; index <= frameStackTop -1; index++ ){
-				CallFrame frame = frameStack[index];
-				
-				if ( frame != null ){
-					frame.closure	= null;
-					frame.function	= null;
-				}
-			}
+			CallFrame[] realloc = new CallFrame[size];
+			System.arraycopy(frameStack, 0, realloc, 0, frameStack.length);
+			frameStack = realloc;
 		}
 		
 		frameStackTop = newTop;
