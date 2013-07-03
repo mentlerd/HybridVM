@@ -153,6 +153,8 @@ public class LuaThread {
 		for ( int index = 0; index < retCount; index++ )
 			returns[index] = frame.get(index);
 		
+		//Earse values, and the frame
+		frame.setTop(0);
 		coroutine.popCallFrame();
 		
 		return returns;
@@ -890,6 +892,7 @@ public class LuaThread {
 							nextFrame.push( LuaUtil.getExceptionCause(err) );
 							nextFrame.push( coroutine.getStackTrace() );
 
+							coroutine.resetStackTrace();
 							coroutine.detach();
 							coroutine = parent;
 							
