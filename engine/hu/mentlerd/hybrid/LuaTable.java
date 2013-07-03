@@ -101,7 +101,7 @@ public class LuaTable {
 	}
 	
 	public int size(){
-		return hashEntries;
+		return hashEntries + arrayEntries;
 	}
 	
 	public Object nextKey( Object key ){
