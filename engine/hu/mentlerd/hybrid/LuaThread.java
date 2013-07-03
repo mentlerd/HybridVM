@@ -11,10 +11,10 @@ public class LuaThread {
 	public Coroutine coroutine;
 	public DebugHook hook;
 	
-	public LuaThread( Platform platform ){
+	public LuaThread( Platform platform, LuaTable rootEnv ){
 		this.platform = platform;
 		
-		root 		= new Coroutine( platform, platform.getEnv() );
+		root 		= new Coroutine( platform, rootEnv );
 		root.thread	= this;
 		
 		coroutine	= root;

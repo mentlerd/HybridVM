@@ -6,7 +6,6 @@ public abstract class Platform {
 	public abstract LuaTable register( Class<?> clazz, LuaTable meta );
 
 	public abstract LuaTable getClassMetatable( Class<?> clazz );
-	public abstract LuaTable getEnv();
 	
 	/**
 	 * This method is called by the engine as a shortcut to getClassMetatable().rawget
