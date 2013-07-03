@@ -80,19 +80,52 @@ public enum BaseLib implements Callable{
 			frame.push( next );
 			
 			if ( next == null ) {
-				frame.push(null);
-				return 2;
+				return 1;
 			} else {
 				frame.push( table.rawget(next) );
 				return 2;
 			}
 		}
 	},
+	INEXT {
+		public int call(CallFrame frame, int argCount) {
+			LuaTable table	= frame.getArg(0, LuaTable.class);
+			Double index	= frame.getArgNull(1, Double.class);
+		
+			if ( index == null )
+				index = 0D;
+			
+			if ( index != index.intValue() )
+				throw new LuaException("Bad argument to inext! Expected whole number as index");
+			
+			Object value = table.rawget(++index);
+			
+			if ( value == null ){
+				frame.push(null);
+				return 1;
+			} else {
+				frame.push(index);
+				frame.push(value);
+				return 2;
+			}
+		}
+	},
+	
 	PAIRS {
 		public int call(CallFrame frame, int argCount) {
 			LuaTable table = frame.getArg(0, LuaTable.class);
 			
 			frame.push( BaseLib.NEXT );
+			frame.push( table );
+			frame.push( null );
+			return 3;
+		}
+	},
+	IPAIRS {
+		public int call(CallFrame frame, int argCount) {
+			LuaTable table = frame.getArg(0, LuaTable.class);
+			
+			frame.push( BaseLib.INEXT );
 			frame.push( table );
 			frame.push( null );
 			return 3;
