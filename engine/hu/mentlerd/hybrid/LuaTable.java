@@ -108,7 +108,7 @@ public class LuaTable {
 		
 		if ( key != null ){ //Check if the key is in there
 			slot = getHashSlot(key);
-			
+
 			if ( hashKeys[slot] == null )
 				throw new LuaException("invalid key to 'next'");
 			
@@ -177,7 +177,7 @@ public class LuaTable {
 	
 	protected int getHashSlot( Object key ){
 		int hashSlot = hashOf( key ) & ( hashCapacity -1 );
-				
+		
 		Object hashKey = null;
 		while( (hashKey = hashKeys[hashSlot]) != null && !key.equals( hashKey ) )
 			hashSlot = ++hashSlot % hashCapacity;
@@ -221,32 +221,33 @@ public class LuaTable {
 		}
 	}
 	
-	protected void clearHashSlot( int slot ){
-		if ( hashKeys[slot] != null ){
-			int hole = slot;
-			int curr = ++slot % hashCapacity;
+	protected void clearHashSlot( int removed ){
+		if ( hashKeys[removed] == null ) return;
+		
+		int space = removed;
+		int check = (removed +1) % hashCapacity;
+		
+		Object key = hashKeys[check];
+		while( key != null ){
+			int desired = hashOf( key ) & ( hashCapacity -1 );
+	
+		//	if ((check > removed && desired < check) ||	--Before overflow and target
+		//		(check < removed && desired > check) ){ --After overflow and target
 			
-			Object key = hashKeys[curr];
-			while( key != null ){
-				int rawSlot = hashOf(key) % hashCapacity;
+			if ( check > removed == desired < check ){
+				hashKeys[space]		= hashKeys[check];
+				hashValues[space]	= hashValues[check];
 				
-				if (( curr > slot && (rawSlot <= slot || rawSlot > curr )) ||
-					( curr < slot && (rawSlot <= slot && rawSlot > curr )) ){
-					
-					hashKeys[hole]   = hashKeys[curr];
-					hashValues[hole] = hashValues[curr];
-					
-					hole = curr;
-				}
-				
-				key = hashKeys[ ++curr % hashCapacity ];
+				space = check;
 			}
 			
-			hashKeys[hole]   = null;
-			hashValues[hole] = null;
-			
-			hashEntries--;			
+			key	= hashKeys[ ++check % hashCapacity ];
 		}
+		
+		hashKeys[space]		= null;
+		hashValues[space]	= null;
+		
+		hashEntries--;
 	}
 	
 }
