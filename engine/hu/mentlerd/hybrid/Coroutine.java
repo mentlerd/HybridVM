@@ -46,6 +46,8 @@ public class Coroutine {
 	protected LuaThread thread;
 	protected Coroutine parent;
 	
+	protected LuaTable env;
+	
 	protected Object[] stack;
 	protected int top;
 	
@@ -55,17 +57,19 @@ public class Coroutine {
 	private StringBuilder stackTrace = new StringBuilder();
 	private int stackTraceLevel = 0;
 	
-	public Coroutine( Platform platform ){
+	public Coroutine( Platform platform, LuaTable env ){
 		this.stack 		= new Object[INITIAL_STACK_SIZE];
 		this.frameStack	= new CallFrame[INITIAL_FRAME_SIZE];
 	
-		this.platform = platform;
+		this.platform 	= platform;
+		this.env		= env;
 	}
-
-	public Coroutine( LuaClosure closure, LuaTable env, Platform platform ){
-		this(platform);
+	
+	//Used to setup root function
+	public Coroutine( Platform platform, LuaTable env, LuaClosure root ){
+		this(platform, env);
 		
-		CallFrame frame = pushCallFrame(closure, 0, 0, -1);
+		CallFrame frame = pushCallFrame(root, 0, 0, -1);
 			frame.fromLua	= true;
 			frame.canYield	= true;	
 	}
@@ -303,7 +307,7 @@ public class Coroutine {
 		return parent;
 	}
 	public LuaTable getEnv(){
-		return platform.getEnv();
+		return env;
 	}
 
 	public String getStatus(){

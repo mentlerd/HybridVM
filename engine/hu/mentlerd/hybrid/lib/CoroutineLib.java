@@ -12,7 +12,7 @@ public enum CoroutineLib implements Callable{
 		public int call(CallFrame frame, int argCount) {
 			LuaClosure closure = getFunction(frame);
 			
-			Coroutine coroutine = new Coroutine(closure, frame.getEnv(), frame.getPlatform());
+			Coroutine coroutine = new Coroutine(frame.getPlatform(), frame.getEnv(), closure);
 			frame.push( coroutine );
 			return 1;
 		}

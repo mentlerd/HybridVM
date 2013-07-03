@@ -14,7 +14,7 @@ public class LuaThread {
 	public LuaThread( Platform platform ){
 		this.platform = platform;
 		
-		root 		= new Coroutine( platform );
+		root 		= new Coroutine( platform, platform.getEnv() );
 		root.thread	= this;
 		
 		coroutine	= root;

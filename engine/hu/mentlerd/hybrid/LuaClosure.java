@@ -24,10 +24,6 @@ public final class LuaClosure {
 	
 	public UpValue[] upvalues;
 	
-	public LuaClosure( Prototype proto, Platform platform ){
-		this( proto, platform.getEnv() );
-	}
-	
 	public LuaClosure( Prototype proto, LuaTable env ){
 		this.proto	= proto;
 		this.env	= env;
