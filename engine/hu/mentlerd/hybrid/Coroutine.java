@@ -253,7 +253,9 @@ public class Coroutine {
 		stackTrace.append(": ");
 		
 		if ( err instanceof LuaException ){
-			stackTrace.append( err.getMessage() );
+			LuaException error = (LuaException) err;
+			
+			stackTrace.append( error.getLuaCause() );
 		} else {
 			stackTrace.append( err.toString() );
 			

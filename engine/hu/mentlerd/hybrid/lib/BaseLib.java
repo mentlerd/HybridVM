@@ -216,6 +216,9 @@ public enum BaseLib implements Callable{
 			int start = frame.getIntArg(1, 1);
 			int limit = frame.getIntArg(2, args.size());
 			
+			if ( limit == 0 )
+				return 0;
+			
 			if ( start < 1 || limit < start )
 				throw new LuaException( "invalid unpack bounds" );
 			
