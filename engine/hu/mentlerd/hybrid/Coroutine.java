@@ -22,7 +22,7 @@ public class Coroutine {
 		
 		coroutine.detach(); //Kill the current coroutine, and return values
 
-        CallFrame nextFrame = parent.getCurrentFrame();
+		CallFrame nextFrame = parent.getCurrentFrame();
         
         if ( nextFrame == null ){ //Parent is dead, push to the stack directly
         	parent.setTop( argCount +1 );
@@ -117,6 +117,8 @@ public class Coroutine {
 	 * Callframe Stack
 	 */
 	public CallFrame getCurrentFrame(){
+		if ( isDead() )	return null;
+		
 		CallFrame frame = frameStack[frameStackTop -1];
 	
 		if ( frame == null )	

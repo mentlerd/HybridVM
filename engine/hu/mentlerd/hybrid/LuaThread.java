@@ -117,30 +117,45 @@ public class LuaThread {
 		return values;
 	}
 	
-	public void resume( Coroutine coroutine, Object ... args ){
-		if ( coroutine.isDead() )
+	public Object[] resume( Coroutine thread, Object ... args ){
+		if ( thread.isDead() )
 			throw new IllegalStateException("Cannot resume a dead coroutine!");
 		
-		coroutine.thread = this;
-		coroutine.parent = this.coroutine;
+		//Push a frame to return yield arguments to
+		coroutine.pushJavaFrame(null, 0, 0, 0);
 		
-		CallFrame nextFrame = coroutine.getCurrentFrame();
+		thread.thread = this;
+		thread.parent = this.coroutine;
 		
-		if ( nextFrame.argCount == -1 ){ //First time resuming
-			int argCount = args.length;
-			
-			nextFrame.setTop( argCount );
-			
-			for ( int index = 0; index < argCount; index++ )
-				nextFrame.push( args[index] );
-			
-			nextFrame.argCount = argCount -1;
+		CallFrame nextFrame = thread.getCurrentFrame();
+		int argCount 		= args.length;
+		
+		if ( nextFrame.argCount == -1 ) //First time resuming, setup stack!
+			nextFrame.setTop(argCount);
+		
+		for ( int index = 0; index < argCount; index++ ) //Push arguments
+			nextFrame.push( args[index] );
+		
+		if ( nextFrame.argCount == -1 ){ //First time resuming, initialize the frame
+			nextFrame.argCount = argCount;
 			nextFrame.init();
 		}
 		
-		this.coroutine	= coroutine;
+		this.coroutine = thread;
 		
 		luaMainloop();
+		
+		//Retrieve yield returns
+		CallFrame frame = coroutine.getCurrentFrame();
+		int retCount 	= frame.getTop();
+		
+		Object[] returns  = new Object[retCount];
+		for ( int index = 0; index < retCount; index++ )
+			returns[index] = frame.get(index);
+		
+		coroutine.popCallFrame();
+		
+		return returns;
 	}
 	
 	/*
@@ -572,10 +587,10 @@ public class LuaThread {
 							callJava((Callable) func, cLocalBase, cReturnBase, cArgCount);
 							
 							frame = coroutine.getCurrentFrame();
-							
-							if ( frame == null || frame.function != null )
-								return; //Got back from a yield to java
 
+							if ( frame == null || !frame.isLua() )
+								return; //Got back from a yield to java
+							
 							closure	= frame.closure;
 							
 							proto	= closure.proto;
@@ -879,6 +894,10 @@ public class LuaThread {
 							coroutine = parent;
 							
 							frame 	= coroutine.getCurrentFrame();
+							
+							if ( frame == null || !frame.isLua() )
+								return; //Return if called from java
+							
 							closure	= frame.closure;
 							
 							proto	= closure.proto;
