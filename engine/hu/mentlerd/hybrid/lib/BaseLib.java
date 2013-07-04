@@ -226,7 +226,7 @@ public enum BaseLib implements Callable{
 			
 			frame.setTop( count );
 			for ( int offset = 0; offset < count; offset++ )
-				frame.set(offset, args.rawget( Double.valueOf(start + offset) ) );
+				frame.set(offset, args.rawget(start + offset));
 			
 			return count;
 		}

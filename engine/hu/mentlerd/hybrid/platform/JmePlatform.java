@@ -11,6 +11,7 @@ import hu.mentlerd.hybrid.Platform;
 import hu.mentlerd.hybrid.lib.BaseLib;
 import hu.mentlerd.hybrid.lib.CoroutineLib;
 import hu.mentlerd.hybrid.lib.StringLib;
+import hu.mentlerd.hybrid.lib.TableLib;
 
 public class JmePlatform extends Platform{
 	protected Map<Class<?>, LuaTable> metatables = new HashMap<Class<?>, LuaTable>();
@@ -44,10 +45,12 @@ public class JmePlatform extends Platform{
 		register(LuaTable.class,	"table");
 		
 		register(LuaClosure.class,	"function");
-		register(Callable.class,	"function");	
+		register(Callable.class,	"function");
 		
 		//Standard libs
 		loadLib(env, BaseLib.class);
+		
+		loadLib(env, "table", TableLib.class);
 		
 		LuaTable string		= loadLib(env, "string", 	StringLib.class);
 		LuaTable coroutine 	= loadLib(env, "coroutine", CoroutineLib.class);

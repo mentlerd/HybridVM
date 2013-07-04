@@ -228,7 +228,7 @@ public class CallFrame{
 	
 	public <T> T getArgNull(int n, Class<T> clazz) {
 		if ( argCount <= n )
-			throw LuaUtil.argError(n, clazz, coroutine.platform);
+			return null;
 		
 		Object arg = get(n);
 		if ( arg != null && !clazz.isAssignableFrom( arg.getClass() ) )

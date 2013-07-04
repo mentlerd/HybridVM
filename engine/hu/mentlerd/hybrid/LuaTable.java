@@ -1,7 +1,7 @@
 package hu.mentlerd.hybrid;
 
 public class LuaTable {
-	
+
 	protected static int findPowerOfTwo( int n ){
 		int res = 1;
 		
@@ -66,15 +66,17 @@ public class LuaTable {
 			Double index	= (Double) key;
 			int slot		= index.intValue();
 			
-			if ( index == slot && 0 <= slot && slot < arrayCapacity ){
-				Object value = array[slot];
-				
-				if ( value != null )
-					return value;
-			}
+			if ( index == slot )
+				return rawget(slot);
 		}
 		
 		return hashValues[ getHashSlot(key) ];
+	}
+	public Object rawget( int key ){
+		if ( 1 <= key && key -1 < arrayCapacity )
+			return array[key -1];
+		
+		return hashValues[ getHashSlot(Double.valueOf(key)) ];
 	}
 	
 	public void rawset( Object key, Object value ){
@@ -86,7 +88,10 @@ public class LuaTable {
 			Double index 	= (Double) key;
 			int slot		= index.intValue();
 			
-			if ( index == slot && fillArraySlot(slot, value) )
+			if ( slot == 0 ) //Negative 0 is still 0
+				key = 0D;
+			
+			if ( index == slot && fillArraySlot(slot -1, value) )
 				return; //The array accepted the value
 		}
 		
@@ -99,9 +104,51 @@ public class LuaTable {
 			fillHashSlot(slot, key, value);
 		}
 	}
+	public void rawset( int key, Object value ){
+		rawset( Double.valueOf(key), value ); //TODO!
+	}
 	
 	public int size(){
 		return hashEntries + arrayEntries;
+	}
+	
+	public int maxN(){
+		int n = 1;
+		
+		for(; n < arrayEntries; n++){
+			if ( array[n] == null )
+				break;
+		}
+		
+		while ( rawget(n) != null )
+			n++;
+		
+		return n -1;
+	}
+	
+	public void insert( Object value, int index ){
+		int space = index;
+		
+		//Find the first empty space
+		while( rawget(space) != null )
+			space++;
+	
+		//Move everything
+		while( space != index )
+			rawset( space, rawget(--space) );
+		
+		rawset( space, value );
+	}
+	public void remove( int index ){
+		rawset( index, null );
+		
+		Object move	= null;
+		int check 	= index;
+		
+		while( (move = rawget(check +1)) != null )
+			rawset( check++, move );	
+		
+		rawset( check, null );
 	}
 	
 	public Object nextKey( Object key ){
@@ -117,8 +164,8 @@ public class LuaTable {
 				Double slot	= (Double) key;
 				int index	= slot.intValue();
 				
-				if ( index == slot && 0 <= index && index < arrayCapacity ){
-					arrayIndex	= index;
+				if ( index == slot && 1 <= index && index -1 < arrayCapacity ){
+					arrayIndex	= index -1;
 					hashSlot	= -1;
 					
 					if ( array[arrayIndex] == null )
@@ -143,7 +190,7 @@ public class LuaTable {
 		if ( arrayIndex != -1 ){
 			for( int index = arrayIndex; index < arrayCapacity; index++ ){
 				if ( array[index] != null )
-					return Double.valueOf(index);
+					return Double.valueOf(index +1);
 			}
 			
 			//No more keys in the array, allow hash search

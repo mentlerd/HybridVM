@@ -2,6 +2,9 @@ package hu.mentlerd.hybrid;
 
 import static hu.mentlerd.hybrid.LuaOpcodes.*;
 
+import java.util.Arrays;
+import java.util.Comparator;
+
 public class LuaUtil {
 	
 	/*
@@ -73,6 +76,42 @@ public class LuaUtil {
 			return value.toString();
 		
 		return null;
+	}
+	
+	/*
+	 * Sorting
+	 */
+	protected static class LuaComparator implements Comparator<Object>{
+		protected LuaThread thread;
+		protected Object func;
+			
+		public int compare( Object A, Object B ) {
+			if ( A == null ) return  1;
+			if ( B == null ) return -1;
+	
+			boolean isLess;
+			
+			if ( func != null ){
+				isLess = LuaUtil.toBoolean( thread.call(func, A, B) );
+			} else {							
+				isLess = thread.compare(A, B, LuaOpcodes.OP_LT);
+			}
+		
+			return isLess ? -1 : 1;
+		}
+	}
+	
+	public static void sort( LuaTable table, LuaThread thread, Object func ){
+		if ( func != null && !(func instanceof LuaClosure || func instanceof Callable) )
+			throw new IllegalArgumentException("Illegal comparator function");
+		
+		Object[] values = table.array;
+		
+		LuaComparator comparator = new LuaComparator();
+			comparator.thread	= thread;
+			comparator.func		= func;
+		
+		Arrays.sort(values, comparator);
 	}
 	
 	/*
