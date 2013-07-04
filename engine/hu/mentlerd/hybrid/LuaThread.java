@@ -68,6 +68,16 @@ public class LuaThread {
 			if ( frame != null )
 				frame.closeUpvalues(0);
 			
+			while( true ){ //Pop all extra frames on top
+				CallFrame pop = coroutine.getCurrentFrame();
+				
+				if ( pop == frame )
+					break;
+				
+				coroutine.addStackTrace(pop);
+				coroutine.popCallFrame();
+			}
+			
 			//Report back to caller
 			coroutine.setTop(base +4);
 			

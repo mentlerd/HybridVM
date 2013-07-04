@@ -176,7 +176,7 @@ public class Coroutine {
 		frameStackTop = newTop;
 	}
 	
-	protected int getFrameTop(){
+	public int getFrameTop(){
 		return frameStackTop;
 	}
 	
