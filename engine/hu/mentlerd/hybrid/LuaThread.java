@@ -178,18 +178,7 @@ public class LuaThread {
 	}
 	
 	public Object getMetaValue( Object value, String key ){
-		if ( value == null ) return null;
-		
-		if ( value instanceof LuaTable ){
-			LuaTable meta = ((LuaTable) value).getMetatable();
-		
-			if ( meta == null )
-				return platform.getClassMetavalue(LuaTable.class, key);
-			
-			return meta.rawget(key);
-		}
-		
-		return platform.getClassMetavalue(value.getClass(), key);
+		return platform.getMetaValue(value, key);
 	}
 	private Object getSharedMetaValue( Object o1, Object o2, String key ){
 		Object meta1 = getMetaValue(o1, key);
@@ -972,7 +961,7 @@ public class LuaThread {
 			if ( meta == null ){
 				if ( isTable ) return null;
 				
-				throw new LuaException("attempt to index a "+ LuaUtil.getTypename(cTable, platform) +" value");
+				throw new LuaException("attempt to index a "+ platform.getTypename(cTable) +" value");
 			}
 			
 			if ( isCallable(meta) ){
@@ -1003,7 +992,7 @@ public class LuaThread {
 				meta = getMetaValue(cTable, "__newindex");
 				
 				if ( meta == null )
-					throw new LuaException("attempt to index a "+ LuaUtil.getTypename(cTable, platform) +" value");
+					throw new LuaException("attempt to index a "+ platform.getTypename(cTable) +" value");
 			}
 			
 			if ( isCallable(meta) ){
@@ -1065,7 +1054,7 @@ public class LuaThread {
 				}
 				
 				if ( meta == null )
-					throw new LuaException( "attempt to compare a "+ LuaUtil.getTypename(a, platform) +" with a "+ LuaUtil.getTypename(b, platform) +" value");
+					throw new LuaException( "attempt to compare a "+ platform.getTypename(a) +" with a "+ platform.getTypename(b) +" value");
 				
 				return LuaUtil.toBoolean( call(meta, a, b) ) == !isInverted;
 		

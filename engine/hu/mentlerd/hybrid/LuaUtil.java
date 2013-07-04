@@ -10,21 +10,7 @@ public class LuaUtil {
 	/*
 	 * General
 	 */
-		
-	public static String getTypename( Object value, Platform platform ){
-		if ( value == null )
-			return "nil";
-		
-		return getTypename(value.getClass(), platform);
-	}
-	public static String getTypename( Class<?> clazz, Platform platform ){
-		Object name = platform.getClassMetavalue(clazz, "__type");
-		
-		if ( name == null )
-			return clazz.getSimpleName();
-		
-		return name.toString();
-	}
+
 		
 	/*
 	 * Conversion
@@ -105,11 +91,11 @@ public class LuaUtil {
 	}
 	
 	public static LuaException argError( int arg, Class<?> expected, Platform platform ){
-		return new LuaException("bad argument to #" + arg + " (expected " + getTypename(expected, platform) +", got no value)");
+		return new LuaException("bad argument to #" + arg + " (expected " + platform.getTypename(expected) +", got no value)");
 	}
 	
 	public static LuaException argError( int arg, Class<?> expected, Object got, Platform platform ){
-		return new LuaException("bad argument to #" + arg + " (expected " + getTypename(expected, platform) +", got "+ getTypename(got, platform) + ")");
+		return new LuaException("bad argument to #" + arg + " (expected " + platform.getTypename(expected) +", got "+ platform.getTypename(got) + ")");
 	}
 	
 	/*
@@ -162,7 +148,7 @@ public class LuaUtil {
 		}
 		
 		err.append(" (a ");
-		err.append( getTypename(frame.get(slot), frame.getPlatform()) );
+		err.append( frame.getPlatform().getTypename(frame.get(slot)) );
 		err.append(" value)");
 		
 		return new LuaException(err.toString());

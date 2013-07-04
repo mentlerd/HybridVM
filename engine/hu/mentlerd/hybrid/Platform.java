@@ -25,4 +25,34 @@ public abstract class Platform {
 		return meta.rawget(index);
 	}
 	
+	
+	public final Object getMetaValue( Object obj, String index ){
+		if ( obj == null ) return null;
+		
+		if ( obj instanceof LuaTable ){
+			LuaTable meta = ((LuaTable) obj).getMetatable();
+		
+			if ( meta == null )
+				return getClassMetavalue(LuaTable.class, index);
+			
+			return meta.rawget(index);
+		}
+		
+		return getClassMetavalue(obj.getClass(), index);
+	}
+	
+	public final String getTypename( Object obj ){
+		if ( obj == null ) 
+			return "nil";
+		
+		return getTypename(obj.getClass());
+	}
+	public final String getTypename( Class<?> clazz ){
+		Object name		= getClassMetavalue(clazz, "__type");
+		
+		if ( name == null )
+			return clazz.getSimpleName();
+		
+		return name.toString();
+	}
 }

@@ -66,7 +66,7 @@ public enum BaseLib implements Callable{
 			Platform platform	= frame.getPlatform();
 			Object value		= frame.getArg(0);
 			
-			frame.push( LuaUtil.getTypename(value, platform) );
+			frame.push( platform.getTypename(value) );
 			return 1;
 		}
 	},
@@ -113,10 +113,20 @@ public enum BaseLib implements Callable{
 	
 	PAIRS {
 		public int call(CallFrame frame, int argCount) {
-			LuaTable table = frame.getArg(0, LuaTable.class);
+			Platform platform	= frame.getPlatform();
+			Object object   	= frame.getArg(0);
 			
-			frame.push( BaseLib.NEXT );
-			frame.push( table );
+			Object iterator = platform.getMetaValue(object, "__next");			
+			
+			if ( iterator == null ){
+				if ( !(object instanceof LuaTable) )
+					throw new LuaException("attempt to iterate trough a " + platform.getTypename(object) );
+				
+				iterator = BaseLib.NEXT;
+			}
+			
+			frame.push( iterator );
+			frame.push( object );
 			frame.push( null );
 			return 3;
 		}
