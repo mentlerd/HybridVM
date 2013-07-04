@@ -1,7 +1,36 @@
 package hu.mentlerd.hybrid;
 
-public class LuaTable {
+import java.util.Iterator;
 
+public class LuaTable implements Iterable<Object>{
+
+	protected static class TableIterator implements Iterator<Object>{
+		protected LuaTable table;	
+		
+		protected Object nextKey;
+		protected Object currKey;
+		
+		public TableIterator( LuaTable table ){
+			this.table 		= table;
+			this.nextKey	= table.nextKey(null);
+		}
+		
+		public boolean hasNext() {
+			System.out.println( "next - " + nextKey );
+			return nextKey != null;
+		}
+
+		public Object next() {
+			currKey = nextKey;
+			nextKey = table.nextKey(currKey);
+			return currKey;
+		}
+
+		public void remove() {
+			table.rawset(currKey, null);
+		}
+	}
+	
 	protected static int findPowerOfTwo( int n ){
 		int res = 1;
 		
@@ -52,6 +81,10 @@ public class LuaTable {
 		
 		hashKeys 	= new Object[hashCapacity];
 		hashValues	= new Object[hashCapacity];
+	}
+	
+	public Iterator<Object> iterator(){
+		return new TableIterator(this);
 	}
 	
 	/*
