@@ -133,10 +133,20 @@ public enum BaseLib implements Callable{
 	},
 	IPAIRS {
 		public int call(CallFrame frame, int argCount) {
-			LuaTable table = frame.getArg(0, LuaTable.class);
+			Platform platform	= frame.getPlatform();
+			Object object   	= frame.getArg(0);
+			
+			Object iterator = platform.getMetaValue(object, "__inext");			
+			
+			if ( iterator == null ){
+				if ( !(object instanceof LuaTable) )
+					throw new LuaException("attempt to iterate trough a " + platform.getTypename(object) );
+				
+				iterator = BaseLib.NEXT;
+			}
 			
 			frame.push( BaseLib.INEXT );
-			frame.push( table );
+			frame.push( object );
 			frame.push( null );
 			return 3;
 		}
