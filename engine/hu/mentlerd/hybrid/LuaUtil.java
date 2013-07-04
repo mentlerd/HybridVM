@@ -10,31 +10,7 @@ public class LuaUtil {
 	/*
 	 * General
 	 */
-	public static LuaTable getRawMetatable( Object value, Platform platform ){
-		LuaTable meta = null;
 		
-		if ( value instanceof LuaTable )
-			meta = ((LuaTable) value).getMetatable();
-		
-		if ( meta == null && value != null )
-			meta = platform.getClassMetatable( value.getClass() );
-		
-		return meta;
-	}
-	
-	public static Object getMetatable( Object value, Platform platform ){
-		LuaTable meta = getRawMetatable(value, platform);
-		
-		if ( meta != null ){
-			Object override = meta.rawget("__metatable");
-			
-			if ( override != null )
-				return override;
-		}
-		
-		return meta;
-	}
-	
 	public static String getTypename( Object value, Platform platform ){
 		if ( value == null )
 			return "nil";

@@ -177,7 +177,7 @@ public class LuaThread {
 		return (func instanceof LuaClosure || func instanceof Callable);
 	}
 	
-	private Object getMetaValue( Object value, String key ){
+	public Object getMetaValue( Object value, String key ){
 		if ( value == null ) return null;
 		
 		if ( value instanceof LuaTable ){
