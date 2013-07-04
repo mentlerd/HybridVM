@@ -16,7 +16,6 @@ public class LuaTable implements Iterable<Object>{
 		}
 		
 		public boolean hasNext() {
-			System.out.println( "next - " + nextKey );
 			return nextKey != null;
 		}
 
