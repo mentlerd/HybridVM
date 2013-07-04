@@ -159,6 +159,16 @@ public enum StringLib implements Callable{
 			String string	= frame.getArg(0, String.class);
 			String pattern	= frame.getArg(1, String.class);
 			
+			frame.push( new MatchIterator(string, pattern) );
+			return 1;
+		}
+	},
+	
+	GSUB {
+		public int call(CallFrame frame, int argCount) {
+			String string	= frame.getArg(0, String.class);
+			String pattern	= frame.getArg(1, String.class);
+			
 			Object object	= frame.getArg(2);
 			int limit		= frame.getIntArg(3, Integer.MAX_VALUE);
 			
@@ -283,4 +293,33 @@ public enum StringLib implements Callable{
 		return 1;
 	}
 
+	protected static class MatchIterator implements Callable{
+		protected Matcher matcher;
+		
+		public MatchIterator( String string, String pattern ){
+			Pattern finder	= Pattern.compile(pattern.replace('%', '\\'));
+			this.matcher	= finder.matcher(string);
+		}
+		
+		public int call(CallFrame frame, int argCount) {
+			if ( matcher.find() ){
+				int groups = matcher.groupCount();
+				
+				if ( groups == 0 ){
+					frame.push( matcher.group() ); //Push the matched region
+					
+					return 1;
+				} else {
+					for ( int index = 0; index < groups; index++ ) //Push groups
+						frame.push( matcher.group(index +1) );
+					
+					return groups;
+				}
+			} else {
+				frame.push(null);
+				return 1;
+			}
+		}
+	}
+	
 }
