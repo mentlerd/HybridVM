@@ -302,6 +302,12 @@ public class LuaThread {
 						Object table 	= frame.get(B);
 						Object key 		= getRK(frame, C, proto);
 
+						//Check if it is valid to index the value
+						boolean isTable = table instanceof LuaTable;
+						
+						if ( !isTable && getMetaValue(table, "__index") == null )
+							throw LuaUtil.slotError(frame, B, "attempt to index");
+						
 						frame.set(A, tableGet(table, key));
 						break;
 					}
@@ -330,6 +336,12 @@ public class LuaThread {
 						Object key 		= getRK(frame, B, proto);
 						Object value 	= getRK(frame, C, proto);
 
+						//Check if it is valid to index the value
+						boolean isTable = table instanceof LuaTable;
+						
+						if ( !isTable && getMetaValue(table, "__index") == null )
+							throw LuaUtil.slotError(frame, A, "attempt to index");
+						
 						tableSet(table, key, value);
 						break;
 					}
