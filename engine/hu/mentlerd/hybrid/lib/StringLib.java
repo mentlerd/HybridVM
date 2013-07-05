@@ -180,7 +180,7 @@ public enum StringLib implements Callable{
 			
 			LuaThread thread = frame.getThread();
 			
-			Pattern finder	= Pattern.compile(pattern);
+			Pattern finder	= compile(pattern);
 			Matcher matcher	= finder.matcher(string);
 			
 			StringBuilder sb = new StringBuilder();
@@ -229,6 +229,12 @@ public enum StringLib implements Callable{
 		}
 	};
 	
+	protected static Pattern compile( String pattern ){
+		pattern = pattern.replace("\\", "\\\\").replace('%', '\\');
+		
+		return Pattern.compile(pattern);
+	}
+	
 	protected static final String SPECIALS = "^$*+?.([%-"; 
 	protected static boolean hasSpecials( String pattern ){
 		for ( int index = 0; index < pattern.length(); index++ ){
@@ -267,7 +273,7 @@ public enum StringLib implements Callable{
 			if ( init != 0 )
 				string = string.substring(init);
 			
-			Pattern finder	= Pattern.compile(pattern.replace('%', '\\'));
+			Pattern finder	= compile(pattern);
 			Matcher matcher	= finder.matcher(string);
 			
 			if ( matcher.find() ){
@@ -297,7 +303,7 @@ public enum StringLib implements Callable{
 		protected Matcher matcher;
 		
 		public MatchIterator( String string, String pattern ){
-			Pattern finder	= Pattern.compile(pattern.replace('%', '\\'));
+			Pattern finder	= compile(pattern);
 			this.matcher	= finder.matcher(string);
 		}
 		
