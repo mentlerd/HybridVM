@@ -267,7 +267,7 @@ public class LexState {
 		String cid = source;
 		String errorMessage;
 		if ( token != 0 ) {
-			errorMessage = cid+":"+linenumber+": "+msg+" near `"+txtToken(token) + "`";
+			errorMessage = cid+":"+linenumber+": "+msg+" near '"+txtToken(token) + "'";
 		} else {
 			errorMessage = cid+":"+linenumber+": "+msg;
 		}
