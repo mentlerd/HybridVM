@@ -92,7 +92,7 @@ public class LuaThread {
 	}
 	
 	public Object call( Object func, Object ... args ){
-		int top 		= coroutine.getTop() +1;
+		int top 		= coroutine.getTop();
 		int argCount	= args.length;
 		
 		coroutine.setTop( top + argCount +1 );
@@ -107,7 +107,7 @@ public class LuaThread {
 	}
 	
 	public Object[] callMultret( Object func, int limit, Object ... args ){
-		int top			= coroutine.getTop() +1;
+		int top			= coroutine.getTop();
 		int argCount	= args.length;
 		
 		coroutine.setTop( top + argCount +1 );
