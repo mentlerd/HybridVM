@@ -1037,15 +1037,20 @@ public class LuaThread {
 			case OP_LT:
 				
 				//Primitive comparison
-				int compare = -2;
+				boolean isPrimitive = false;
+				int compare = 0;
 				
 				if ( a instanceof Double && b instanceof Double ){
+					isPrimitive = true;
+					
 					compare = ((Double) a).compareTo( (Double) b );
 				} else if ( a instanceof String && b instanceof String ){
+					isPrimitive = true;
+					
 					compare = ((String) a).compareTo( (String) b );
 				}
 				
-				if ( compare != -2 )
+				if ( isPrimitive )
 					return ( opcode == OP_LT ? compare < 0 : compare <= 0 );
 				
 				//Meta comparison
