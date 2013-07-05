@@ -88,13 +88,4 @@ public enum TableLib implements Callable{
 		}
 	};
 	
-	public static LuaTable bind(){
-		return bind( new LuaTable() );
-	}
-	public static LuaTable bind( LuaTable into ){
-		for ( TableLib entry : values() )
-			into.rawset(entry.name().toLowerCase(), entry);
-		
-		return into;
-	}
 }
