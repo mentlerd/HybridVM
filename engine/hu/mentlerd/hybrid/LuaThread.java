@@ -689,9 +689,6 @@ public class LuaThread {
 									return;
 									
 								frame = coroutine.getCurrentFrame();
-								
-								if ( frame.restoreTop )
-									frame.setTop( frame.closure.proto.maxStacksize );
 							}
 						} else {
 							throw LuaUtil.slotError(frame, A, "attempt to call");
@@ -702,6 +699,10 @@ public class LuaThread {
 						
 						opcodes 	= proto.code;
 						returnBase	= frame.returnBase;
+						
+						if ( frame.restoreTop )
+							frame.setTop( proto.maxStacksize );
+						
 						break;
 					}
 					
