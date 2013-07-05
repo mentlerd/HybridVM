@@ -315,6 +315,12 @@ public enum BaseLib implements Callable{
 			frame.push( table.rawget(key) );
 			return 1;
 		}
-	},
+	};
 	
+	public static LuaTable bind( LuaTable into ){
+		for ( BaseLib entry : values() )
+			into.rawset(entry.name().toLowerCase(), entry);
+		
+		return into;
+	}
 }

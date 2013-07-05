@@ -5,6 +5,7 @@ import hu.mentlerd.hybrid.Callable;
 import hu.mentlerd.hybrid.Coroutine;
 import hu.mentlerd.hybrid.LuaClosure;
 import hu.mentlerd.hybrid.LuaException;
+import hu.mentlerd.hybrid.LuaTable;
 
 public enum CoroutineLib implements Callable{
 
@@ -76,4 +77,13 @@ public enum CoroutineLib implements Callable{
 		return (LuaClosure) obj;
 	}
 	
+	public static LuaTable bind(){
+		return bind( new LuaTable() );
+	}
+	public static LuaTable bind( LuaTable into ){
+		for ( CoroutineLib entry : values() )
+			into.rawset(entry.name().toLowerCase(), entry);
+		
+		return into;
+	}
 }
