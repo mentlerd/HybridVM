@@ -54,6 +54,9 @@ public class CallFrame{
 	 * Stack
 	 */
 	public void set( int index, Object value ){
+		if ( getTop() <= index )
+			throw new RuntimeException("Script ignored top!");
+		
 		coroutine.stack[localBase + index] = value;
 	}
 	public Object get( int index ){

@@ -835,6 +835,8 @@ public class LuaThread {
 							
 							table.rawset(key, value);
 						}
+						
+						frame.setTop( proto.maxStacksize ); //Restore top. (In case of last multret fucked it up)
 						break;
 					}
 					
@@ -918,6 +920,10 @@ public class LuaThread {
 							opcodes	= proto.code;
 							
 							returnBase	= frame.returnBase;
+							
+							if ( frame.restoreTop )
+								frame.setTop( proto.maxStacksize );
+							
 							doThrow = false;
 						}
 						break;
