@@ -10,6 +10,7 @@ import hu.mentlerd.hybrid.LuaTable;
 import hu.mentlerd.hybrid.Platform;
 import hu.mentlerd.hybrid.lib.BaseLib;
 import hu.mentlerd.hybrid.lib.CoroutineLib;
+import hu.mentlerd.hybrid.lib.MathLib;
 import hu.mentlerd.hybrid.lib.StringLib;
 import hu.mentlerd.hybrid.lib.TableLib;
 
@@ -24,19 +25,7 @@ public class JmePlatform extends Platform{
 		metatables.put(clazz, meta);
 		return meta;
 	}
-	
-	private void loadLib( LuaTable env, Class<? extends Enum<? extends Callable>> lib ){
-		for (Enum<? extends Callable> entry : lib.getEnumConstants())
-			env.rawset( entry.name().toLowerCase(), entry );
-	}
-	private LuaTable loadLib( LuaTable env, String name, Class<? extends Enum<? extends Callable>> lib ){
-		LuaTable table = new LuaTable();
-			env.rawset(name, table);
 		
-		loadLib(table, lib);
-		return table;
-	}
-	
 	public JmePlatform(){
 		//Typenames
 		register(Boolean.class,	"boolean");
@@ -48,13 +37,20 @@ public class JmePlatform extends Platform{
 		register(Callable.class,	"function");
 		
 		//Standard libs
-		loadLib(env, BaseLib.class);
+		BaseLib.bind(env);
 		
-		loadLib(env, "table", TableLib.class);
+		env.rawset("math", MathLib.bind());
+		env.rawset("table", TableLib.bind());
 		
-		LuaTable string		= loadLib(env, "string", 	StringLib.class);
-		LuaTable coroutine 	= loadLib(env, "coroutine", CoroutineLib.class);
-	
+		LuaTable string		= new LuaTable();
+		LuaTable coroutine	= new LuaTable();
+		
+		StringLib.bind(string);
+		CoroutineLib.bind(coroutine);
+		
+		env.rawset("string", 	string);
+		env.rawset("coroutine", coroutine);
+		
 		//Special meta
 		LuaTable meta;
 		
