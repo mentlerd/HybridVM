@@ -21,6 +21,7 @@ public class MathLib {
 		OneArgMath.bind(into);
 		TwoArgMath.bind(into);
 		
+		SpecialMath.bind(into);
 		return into;
 	}
 	
