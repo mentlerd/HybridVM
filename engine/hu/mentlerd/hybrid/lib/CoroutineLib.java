@@ -6,6 +6,7 @@ import hu.mentlerd.hybrid.Coroutine;
 import hu.mentlerd.hybrid.LuaClosure;
 import hu.mentlerd.hybrid.LuaException;
 import hu.mentlerd.hybrid.LuaTable;
+import hu.mentlerd.hybrid.LuaUtil;
 
 public enum CoroutineLib implements Callable{
 
@@ -15,6 +16,15 @@ public enum CoroutineLib implements Callable{
 			
 			Coroutine coroutine = new Coroutine(frame.getPlatform(), frame.getEnv(), closure);
 			frame.push( coroutine );
+			return 1;
+		}
+	},
+	WRAP {
+		public int call(CallFrame frame, int argCount) {
+			LuaClosure closure = getFunction(frame);
+			
+			Coroutine coroutine = new Coroutine(frame.getPlatform(), frame.getEnv(), closure);
+			frame.push( new WrappedCoroutine(coroutine) );
 			return 1;
 		}
 	},
@@ -67,6 +77,35 @@ public enum CoroutineLib implements Callable{
 			return 0;
 		}
 	};
+	
+	protected static class WrappedCoroutine implements Callable{
+		protected final Coroutine coroutine;
+		
+		public WrappedCoroutine( Coroutine coroutine ){
+			this.coroutine = coroutine;
+		}
+		
+		public int call(CallFrame frame, int argCount) {
+			Object[] args = new Object[argCount];
+			Object[] rets = null;
+			
+			for ( int index = 0; index < argCount; index++ )
+				args[index] = frame.get(index);
+			
+			rets = frame.getThread().resume(coroutine, args);
+			
+			if ( LuaUtil.toBoolean(rets[0]) ){
+				int retCount = rets.length -1;
+				
+				for ( int index = 0; index < retCount; index++ )
+					frame.push( rets[index +1] );
+				
+				return retCount;
+			} else {
+				throw new LuaException( rets[1].toString() );
+			}
+		}
+	}
 	
 	protected LuaClosure getFunction( CallFrame frame ){
 		Object obj = frame.getArg(0);
