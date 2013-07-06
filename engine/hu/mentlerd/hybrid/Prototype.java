@@ -11,8 +11,14 @@ public final class Prototype {
 		public LocalVar(String name) {
 			this.name = name;
 		}
+		public LocalVar(String name, int start, int end){
+			this.name = name;
+					
+			this.start = start;
+			this.end   = end;
+		}
 	}
-
+	
 	public int[] code;
 
 	public Object[] constants;
