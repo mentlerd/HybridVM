@@ -21,10 +21,16 @@ public class BytecodeManager {
 	protected static final int TYPE_STRING	= 4;
 
 	public static Prototype read( InputStream stream ) throws IOException{
+		return read(stream.read(), stream);
+	}
+	public static Prototype read( int first, InputStream stream ) throws IOException{
 		DataInputStream input = new DataInputStream(stream);
 		
 		//Check signature
-		for ( int index = 0; index < SIGNATURE.length; index++ ){
+		if ( SIGNATURE[0] != first )
+			throw new LuaException("Lua signature mismatch");
+		
+		for ( int index = 1; index < SIGNATURE.length; index++ ){
 			if ( SIGNATURE[index] != input.read() )
 				throw new LuaException("Lua signature mismatch");
 		}

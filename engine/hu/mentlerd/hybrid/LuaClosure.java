@@ -14,9 +14,15 @@ public final class LuaClosure {
 	}
 	
 	public static Prototype compile( InputStream stream, String source ) throws IOException{	
-		InputStreamReader reader = new InputStreamReader(stream);
+		int first = stream.read();
 		
-		return LexState.compile(reader.read(), reader, source);
+		if ( first == BytecodeManager.SIGNATURE[0] ){
+			return BytecodeManager.read(first, stream);
+		} else {
+			InputStreamReader reader = new InputStreamReader(stream);
+			
+			return LexState.compile(first, reader, source);
+		}
 	}
 	
 	public Prototype proto;
