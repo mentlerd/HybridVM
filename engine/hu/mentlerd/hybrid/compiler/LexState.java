@@ -566,15 +566,6 @@ public class LexState {
 					return TK_GE;
 				}
 			}
-			case '!': {
-				nextChar();
-				if (current != '=')
-					return TK_NOT;
-				else {
-					nextChar();
-					return TK_NE;
-				}
-			}
 			case '~': {
 				nextChar();
 				if (current != '=')
@@ -603,6 +594,36 @@ public class LexState {
 					return TK_NUMBER;
 				}
 			}
+			
+			//Custom operators
+			case '!': {
+				nextChar();
+				if (current != '=')
+					return TK_NOT;
+				else {
+					nextChar();
+					return TK_NE;
+				}
+			}
+			case '&' : {
+				nextChar();
+				if (current != '&')
+					return '&';
+				else {
+					nextChar();
+					return TK_AND;
+				}
+			}
+			case '|': {
+				nextChar();
+				if (current != '|')
+					return '|';
+				else {
+					nextChar();
+					return TK_OR;
+				}
+			}	
+			
 			case EOZ: {
 				return TK_EOS;
 			}
