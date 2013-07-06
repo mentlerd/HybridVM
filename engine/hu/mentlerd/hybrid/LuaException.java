@@ -10,10 +10,14 @@ public class LuaException extends RuntimeException{
 	}
 
 	public LuaException( String message, Object cause ){
-		this( message );
+		super( message );
 		this.luaCause = cause;
 	}
 
+	public LuaException( Throwable cause ){
+		super(cause);
+	}
+	
 	public Object getLuaCause(){
 		if ( luaCause == null )
 			return getMessage();
