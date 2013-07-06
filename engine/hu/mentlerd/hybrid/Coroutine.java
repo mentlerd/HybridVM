@@ -147,7 +147,7 @@ public class Coroutine {
 		return frame;
 	}
 	
-	protected void popCallFrame(){
+	public void popCallFrame(){
 		if ( frameStackTop == 0 )
 			throw new LuaException("Frame stack undeflow");
 		
