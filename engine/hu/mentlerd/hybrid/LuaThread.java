@@ -131,8 +131,10 @@ public class LuaThread {
 		if ( thread.isDead() )
 			throw new IllegalStateException("Cannot resume a dead coroutine!");
 		
+		int top = coroutine.getTop();
+		
 		//Push a frame to return yield arguments to
-		coroutine.pushJavaFrame(null, 0, 0, 0);
+		coroutine.pushJavaFrame(null, top, top, 0);
 		
 		thread.thread = this;
 		thread.parent = this.coroutine;
@@ -151,8 +153,11 @@ public class LuaThread {
 			nextFrame.init();
 		}
 		
-		this.coroutine = thread;
+		if ( nextFrame.restoreTop )
+			nextFrame.setTop( nextFrame.closure.proto.maxStacksize );
 		
+		this.coroutine = thread;
+				
 		luaMainloop();
 		
 		//Retrieve yield returns
@@ -164,7 +169,7 @@ public class LuaThread {
 			returns[index] = frame.get(index);
 		
 		//Earse values, and the frame
-		frame.setTop(0);
+		coroutine.setTop(top);
 		coroutine.popCallFrame();
 		
 		return returns;
@@ -885,7 +890,7 @@ public class LuaThread {
 				while( true ){ //Pop all java frames on top
 					frame = coroutine.getCurrentFrame();
 					
-					if ( frame.isLua() )
+					if ( frame == null || frame.isLua() )
 						break;
 					
 					coroutine.addStackTrace(frame);
@@ -1087,7 +1092,7 @@ public class LuaThread {
 			return (String) value;
 		
 		if ( isCallable(value) )
-			return System.identityHashCode(value);
+			return "function: " + System.identityHashCode(value);
 		
 		Object meta = getMetaValue(value, "__tostring");
 		if ( meta != null )
