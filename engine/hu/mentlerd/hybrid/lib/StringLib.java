@@ -1,8 +1,11 @@
 package hu.mentlerd.hybrid.lib;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import hu.mentlerd.hybrid.BytecodeManager;
 import hu.mentlerd.hybrid.CallFrame;
 import hu.mentlerd.hybrid.Callable;
 import hu.mentlerd.hybrid.LuaClosure;
@@ -88,6 +91,22 @@ public enum StringLib implements Callable{
 		}
 	},
 	
+	DUMP {
+		public int call(CallFrame frame, int argCount) {
+			LuaClosure closure = getFunction(frame);
+			
+			try {
+				ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+				BytecodeManager.write(buffer, closure.proto);
+			
+				frame.push(buffer.toString());
+				return 1;	
+			} catch ( IOException err ){
+				throw new LuaException(err);
+			}
+		}
+	},
+	
 	LOWER {
 		public int call(CallFrame frame, int argCount) {
 			String string = frame.getArg(0, String.class);
@@ -139,7 +158,14 @@ public enum StringLib implements Callable{
 	
 	FORMAT {
 		public int call(CallFrame frame, int argCount) {
-			throw new LuaException("unimplemented string.format");
+			String format = frame.getArg(0, String.class);
+			
+			Object[] params = new Object[argCount -1];
+			for ( int index = 0; index < params.length; index++ )
+				params[index] = frame.get(index +1);
+			
+			frame.push( String.format(format, params) );
+			return 1;
 		}
 	},
 	
@@ -228,6 +254,15 @@ public enum StringLib implements Callable{
 			return 1;
 		}
 	};
+	
+	protected static LuaClosure getFunction( CallFrame frame ){
+		Object obj = frame.getArg(0);
+		
+		if ( !(obj instanceof LuaClosure) )
+			throw new LuaException("argument must be a lua function");
+		
+		return (LuaClosure) obj;
+	}
 	
 	protected static Pattern compile( String pattern ){
 		pattern = pattern.replace("\\", "\\\\").replace('%', '\\');
