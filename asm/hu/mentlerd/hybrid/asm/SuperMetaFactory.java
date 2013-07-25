@@ -63,7 +63,7 @@ public class SuperMetaFactory {
 			this.argIndex 	= argIndex;
 			
 			if ( argClass != null )
-				this.argClass = AsmHelper.getCoercedClass(argClass);
+				this.argClass = Coercion.getCoercedClass(argClass);
 		}
 		
 		public boolean argWillPass( CallFrame frame ){	

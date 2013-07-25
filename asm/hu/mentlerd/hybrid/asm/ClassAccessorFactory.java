@@ -108,7 +108,7 @@ public class ClassAccessorFactory {
 						mv.visitTypeInsn(CHECKCAST, clazzNameAsm);
 						mv.visitFieldInsn(GETFIELD, clazzNameAsm, field.getName(), fieldType.getDescriptor());
 					
-						AsmHelper.varToLua(mv, fieldType); //Cast primitives to objects
+						Coercion.varToLua(mv, fieldType); //Cast primitives to objects
 						
 						mv.visitInsn(ARETURN);
 					}
@@ -148,7 +148,7 @@ public class ClassAccessorFactory {
 						mv.visitTypeInsn(CHECKCAST, clazzNameAsm);
 						mv.visitVarInsn(ALOAD, 3);
 						
-						AsmHelper.luaToVar(mv, fieldType);
+						Coercion.luaToVar(mv, fieldType);
 						
 						mv.visitFieldInsn(PUTFIELD, clazzNameAsm, field.getName(), fieldType.getDescriptor());
 						mv.visitInsn(RETURN);
@@ -235,7 +235,7 @@ public class ClassAccessorFactory {
 						
 						//Initialize the object, and push back
 						mv.visitMethodInsn(INVOKESPECIAL, clazzNameAsm, "<init>", Type.getConstructorDescriptor(constructor));
-						AsmHelper.varToLua(mv, clazzType);
+						Coercion.varToLua(mv, clazzType);
 						AsmHelper.framePush(mv);
 						
 						mv.visitInsn(RETURN);
@@ -284,7 +284,7 @@ public class ClassAccessorFactory {
 				if ( isStatic(mods)  ) continue;
 				if ( isPrivate(mods) ) continue;
 				
-				if ( !AsmHelper.canCoerceField(field) )
+				if ( !Coercion.canCoerceField(field) )
 					continue;
 				
 				fields.add(field);
@@ -303,7 +303,7 @@ public class ClassAccessorFactory {
 			if ( method.getDeclaringClass() == Object.class )
 				continue;
 			
-			if ( !AsmHelper.canCoerceMethod(method) )
+			if ( !Coercion.canCoerceMethod(method) )
 				continue;
 			
 			methods.add(method);
