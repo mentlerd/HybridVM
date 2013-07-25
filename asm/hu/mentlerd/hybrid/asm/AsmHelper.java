@@ -32,7 +32,19 @@ public class AsmHelper {
 		return labels;
 	}
 	
-	public static boolean doParamsMatch( Class<?>[] params, Method method ){
+	public static void push( MethodVisitor mv, int value ){
+		if ( value >= -1 && value <= 5 ){
+			mv.visitInsn(ICONST_0 + value);
+		} else if ( value >= Byte.MIN_VALUE  && value <= Byte.MAX_VALUE ){
+			mv.visitIntInsn(BIPUSH, value);
+		} else if ( value >= Short.MIN_VALUE && value <= Short.MAX_VALUE ){
+			mv.visitIntInsn(SIPUSH, value);
+		} else {
+			mv.visitLdcInsn(Integer.valueOf(value));
+		}
+	}
+		
+ 	public static boolean doParamsMatch( Class<?>[] params, Method method ){
 		Class<?>[] pTypes = method.getParameterTypes();
 		
 		if ( params.length != pTypes.length )
@@ -62,7 +74,7 @@ public class AsmHelper {
 		return Modifier.isStatic( method.getModifiers() );
 	}
 	
-	protected static final boolean isMethodSpecial( Method method ){
+	public static final boolean isMethodSpecial( Method method ){
 		if ( !method.isAnnotationPresent( LuaMethod.class ) )
 			return false;
 		
@@ -104,7 +116,7 @@ public class AsmHelper {
 		Type coerced = Type.getType(Coercion.getCoercedClass(param));	
 		
 		//Pull the parameter on the stack
-		mv.visitIntInsn(SIPUSH, index); //CallFrame.getArg( 0, clazz )
+		push( mv, index );
 		mv.visitLdcInsn(coerced);
 		
 		if ( Coercion.canCoerceNull(type) )
@@ -117,7 +129,6 @@ public class AsmHelper {
 
 	
 	//Lua calls
-	
 	public static void framePush( MethodVisitor mv ){
 		mv.visitMethodInsn(INVOKEVIRTUAL, FRAME, "push", PUSH);
 	}
