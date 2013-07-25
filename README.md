@@ -11,7 +11,7 @@ generate lua to Java bridges, eliminating the need to write inner classes, or
 extra code to get existing classes work in the engine.
 
 To compile the engine with class generation support, you will need to have Java ASM
-( Grab it from: http://asm.ow2.org/ )
+on the classpath. ( The asm, and asm-commons jars. Grab them from: http://asm.ow2.org/ )
 
 The target platform is Java 1.6, hence the excessive use of generics.
 

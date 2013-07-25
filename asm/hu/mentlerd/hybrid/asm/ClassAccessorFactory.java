@@ -13,9 +13,7 @@ import java.util.Map;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
-import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
-
 import static org.objectweb.asm.Opcodes.*;
 import static java.lang.reflect.Modifier.*;
 
@@ -32,6 +30,8 @@ public class ClassAccessorFactory {
 
 	protected static final String CALL		= "(IL"+FRAME+";)I";
 	protected static final String CREATE	= "(IL"+FRAME+";)V";
+	
+	protected static Type EXCEPTION	= Type.getType( IllegalArgumentException.class );
 	
 	//Cached ClassAccessors
 	protected static Map<Class<?>, ClassAccessor> instances = new HashMap<Class<?>, ClassAccessor>();
@@ -67,13 +67,13 @@ public class ClassAccessorFactory {
 		
 		//Class generation start
 		ClassWriter cw = new ClassWriter( ClassWriter.COMPUTE_MAXS );
-		MethodVisitor mv;
+		CoercionAdapter mv;
 		
 		cw.visit(V1_5, ACC_PUBLIC + ACC_SUPER, accessNameAsm, null, ACCESSOR, null);
 		
 		//ClassAccessor()
 		{
-			mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
+			mv = new CoercionAdapter(cw, ACC_PUBLIC, "<init>", "()V");
 			
 			mv.visitCode();
 				mv.visitVarInsn(ALOAD, 0);
@@ -85,7 +85,7 @@ public class ClassAccessorFactory {
 		
 		//Object getField( Object, int )
 		{
-			mv = cw.visitMethod(ACC_PUBLIC, "getField", FIELD_GET, null, null);
+			mv = new CoercionAdapter(cw, ACC_PUBLIC, "getField", FIELD_GET);
 			
 			mv.visitCode();
 			
@@ -102,22 +102,20 @@ public class ClassAccessorFactory {
 						Type fieldType 	= Type.getType(field.getType());
 						
 						mv.visitLabel(sLabels[index]);
-						mv.visitFrame(F_SAME, 0, null, 0, null);
 					
 						mv.visitVarInsn(ALOAD, 1);
 						mv.visitTypeInsn(CHECKCAST, clazzNameAsm);
 						mv.visitFieldInsn(GETFIELD, clazzNameAsm, field.getName(), fieldType.getDescriptor());
 					
-						Coercion.varToLua(mv, fieldType); //Cast primitives to objects
+						mv.varToLua(fieldType); //Cast primitives to objects
 						
 						mv.visitInsn(ARETURN);
 					}
 					
 					mv.visitLabel(sDefault); //Create default branch
-					mv.visitFrame(F_SAME, 0, null, 0, null);
 				}
 				
-				AsmHelper.throwException(mv, IllegalArgumentException.class, "Illegal field index");
+				mv.throwException(EXCEPTION, "Illegal field index");
 				
 				mv.visitMaxs(0, 0);
 			mv.visitEnd();
@@ -125,7 +123,7 @@ public class ClassAccessorFactory {
 		
 		//void setField( Object, int, Object )
 		{	
-			mv = cw.visitMethod(ACC_PUBLIC, "setField", FIELD_SET, null, null);
+			mv = new CoercionAdapter(cw, ACC_PUBLIC, "setField", FIELD_SET);
 			
 			mv.visitCode();
 				
@@ -142,31 +140,30 @@ public class ClassAccessorFactory {
 						Type fieldType 	= Type.getType(field.getType());
 						
 						mv.visitLabel(sLabels[index]);
-						mv.visitFrame(F_SAME, 0, null, 0, null);
 					
 						mv.visitVarInsn(ALOAD, 1);
 						mv.visitTypeInsn(CHECKCAST, clazzNameAsm);
 						mv.visitVarInsn(ALOAD, 3);
 						
-						Coercion.luaToVar(mv, fieldType);
+						mv.luaToVar(fieldType);
 						
 						mv.visitFieldInsn(PUTFIELD, clazzNameAsm, field.getName(), fieldType.getDescriptor());
 						mv.visitInsn(RETURN);
 					}
 					
 					mv.visitLabel(sDefault); //Create default branch
-					mv.visitFrame(F_SAME, 0, null, 0, null);
 				}
 			
-				AsmHelper.throwException(mv, IllegalArgumentException.class, "Illegal field index");
-			
+				mv.throwException(EXCEPTION, "Illegal field index");
+					
 				mv.visitMaxs(0, 0);
 			mv.visitEnd();
 		}
 		
 		//void call( int, CallFrame )
 		{		
-			mv = cw.visitMethod(ACC_PUBLIC, "call", CALL, null, null);
+			mv = new CoercionAdapter(cw, ACC_PUBLIC, "call", CALL);
+			mv.frameArgIndex = 1;
 			
 			mv.visitCode();
 				
@@ -180,20 +177,18 @@ public class ClassAccessorFactory {
 					
 					for ( int index = 0; index < methods.size(); index++ ){ //Switch branches for each field
 						mv.visitLabel(sLabels[index]);
-						mv.visitFrame(F_SAME, 0, null, 0, null);
-						
+					
 						//Add method invocation
-						AsmHelper.callToJava(mv, clazzType, methods.get(index));
+						mv.callToJava(clazzType, methods.get(index));
 						
 						//Return how many values we pushed
 						mv.visitInsn(IRETURN);
 					}
 					
 					mv.visitLabel(sDefault); //Create default branch
-					mv.visitFrame(F_SAME, 0, null, 0, null);
 				}
 			
-				AsmHelper.throwException(mv, IllegalArgumentException.class, "Illegal method index");
+				mv.throwException(EXCEPTION, "Illegal method index");
 				
 				mv.visitMaxs(0, 0);
 			mv.visitEnd();
@@ -201,7 +196,7 @@ public class ClassAccessorFactory {
 		
 		//void create( int, CallFrame )
 		{
-			mv = cw.visitMethod(ACC_PUBLIC, "create", CREATE, null, null);
+			mv = new CoercionAdapter(cw, ACC_PUBLIC, "create", CREATE);
 			
 			mv.visitCode();
 				
@@ -218,7 +213,6 @@ public class ClassAccessorFactory {
 						Class<?>[] pClasses	= constructor.getParameterTypes();
 						
 						mv.visitLabel(sLabels[index]);
-						mv.visitFrame(F_SAME, 0, null, 0, null);
 						
 						mv.visitVarInsn(ALOAD, 2); //CallFrame
 	
@@ -227,25 +221,21 @@ public class ClassAccessorFactory {
 						mv.visitInsn(DUP);
 						
 						//Unpack, and coerce arguments
-						for ( int pIndex = 0; pIndex < pClasses.length; pIndex++ ){	
-							mv.visitVarInsn(ALOAD, 2);
-							
-							AsmHelper.getParamToVar(mv, pIndex, pClasses[pIndex]);
-						}
+						for ( int pIndex = 0; pIndex < pClasses.length; pIndex++ )
+							mv.coerceFrameArg(pIndex, pClasses[pIndex]);
 						
 						//Initialize the object, and push back
 						mv.visitMethodInsn(INVOKESPECIAL, clazzNameAsm, "<init>", Type.getConstructorDescriptor(constructor));
-						Coercion.varToLua(mv, clazzType);
-						AsmHelper.framePush(mv);
+						mv.varToLua(clazzType);
+						mv.visitMethodInsn(INVOKEVIRTUAL, FRAME, "push", CoercionAdapter.PUSH);
 						
 						mv.visitInsn(RETURN);
 					}
 					
 					mv.visitLabel(sDefault); //Create default branch
-					mv.visitFrame(F_SAME, 0, null, 0, null);
 				}
 			
-				AsmHelper.throwException(mv, IllegalArgumentException.class, "Illegal constructor index");
+				mv.throwException(EXCEPTION, "Illegal constructor index");
 				
 				mv.visitMaxs(0, 0);
 			mv.visitEnd();
@@ -284,9 +274,6 @@ public class ClassAccessorFactory {
 				if ( isStatic(mods)  ) continue;
 				if ( isPrivate(mods) ) continue;
 				
-				if ( !Coercion.canCoerceField(field) )
-					continue;
-				
 				fields.add(field);
 			}
 			
@@ -301,9 +288,6 @@ public class ClassAccessorFactory {
 		
 		for ( Method method : clazz.getMethods() ){
 			if ( method.getDeclaringClass() == Object.class )
-				continue;
-			
-			if ( !Coercion.canCoerceMethod(method) )
 				continue;
 			
 			methods.add(method);
