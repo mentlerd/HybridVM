@@ -6,12 +6,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 
 public class LuaUtil {
-	
-	/*
-	 * General
-	 */
 
-		
 	/*
 	 * Conversion
 	 */
@@ -45,35 +40,41 @@ public class LuaUtil {
 	 */
 	protected static class LuaComparator implements Comparator<Object>{
 		protected LuaThread thread;
-		protected Object func;
+		
+		protected Object comparator;
+		protected boolean order;
+		
+		public LuaComparator( LuaThread thread, Object func, boolean desc ){
+			this.thread	= thread;
 			
+			this.comparator	= func;
+			this.order		= desc;
+		}
+		
 		public int compare( Object A, Object B ) {
 			if ( A == null ) return  1;
 			if ( B == null ) return -1;
 	
 			boolean isLess;
 			
-			if ( func != null ){
-				isLess = LuaUtil.toBoolean( thread.call(func, A, B) );
+			if ( comparator != null ){
+				isLess = LuaUtil.toBoolean( thread.call(comparator, A, B) );
 			} else {							
 				isLess = thread.compare(A, B, LuaOpcodes.OP_LT);
 			}
 		
-			return isLess ? -1 : 1;
+			return (isLess != order) ? -1 : 1;
 		}
 	}
 	
 	public static void sort( LuaTable table, LuaThread thread, Object func ){
-		if ( func != null && !(func instanceof LuaClosure || func instanceof Callable) )
+		sort(table, thread, func, false);
+	}
+	public static void sort( LuaTable table, LuaThread thread, Object func, boolean desc ){
+		if ( func != null && !LuaThread.isCallable(func) )
 			throw new IllegalArgumentException("Illegal comparator function");
 		
-		Object[] values = table.array;
-		
-		LuaComparator comparator = new LuaComparator();
-			comparator.thread	= thread;
-			comparator.func		= func;
-		
-		Arrays.sort(values, comparator);
+		Arrays.sort(table.array, new LuaComparator(thread, func, desc));
 	}
 	
 	/*

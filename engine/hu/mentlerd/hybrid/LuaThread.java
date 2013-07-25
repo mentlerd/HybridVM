@@ -178,7 +178,7 @@ public class LuaThread {
 	/*
 	 * VM Core
 	 */
-	private static boolean isCallable( Object func ){
+	public static boolean isCallable( Object func ){
 		return (func instanceof LuaClosure || func instanceof Callable);
 	}
 	
