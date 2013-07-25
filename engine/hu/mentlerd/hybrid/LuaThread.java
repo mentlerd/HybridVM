@@ -182,7 +182,7 @@ public class LuaThread {
 		return (func instanceof LuaClosure || func instanceof Callable);
 	}
 	
-	public Object getMetaValue( Object value, String key ){
+	private Object getMetaValue( Object value, String key ){
 		return platform.getMetaValue(value, key);
 	}
 	private Object getSharedMetaValue( Object o1, Object o2, String key ){

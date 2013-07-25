@@ -3,8 +3,6 @@ package hu.mentlerd.hybrid;
 public abstract class Platform {
 	
 	//Abstract layer
-	public abstract LuaTable register( Class<?> clazz, LuaTable meta );
-
 	public abstract LuaTable getClassMetatable( Class<?> clazz );
 	
 	/**
