@@ -2,6 +2,7 @@ package hu.mentlerd.hybrid.asm;
 
 import hu.mentlerd.hybrid.CallFrame;
 
+import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -10,10 +11,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
+import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.Type;
+
+import org.objectweb.asm.util.TraceClassVisitor;
 import static org.objectweb.asm.Opcodes.*;
 import static java.lang.reflect.Modifier.*;
 
@@ -162,29 +167,33 @@ public class ClassAccessorFactory {
 		
 		//void call( int, CallFrame )
 		{		
+			Map<String, List<Method>> methodMap = OverloadResolver.mapMethods(methods);
+			methods.clear(); //TODO: Refactor this to its proper place
+			
 			mv = new CoercionAdapter(cw, ACC_PUBLIC, "call", CALL);
 			mv.frameArgIndex = 1;
 			
 			mv.visitCode();
 				
-				if ( !methods.isEmpty() ){
+				if ( !methodMap.isEmpty() ){
 					mv.visitVarInsn(ILOAD, 1); //Load index
 					
 					Label sDefault 	= new Label(); //Switch labels
-					Label[] sLabels = AsmHelper.createLabels(methods.size());
+					Label[] sLabels = AsmHelper.createLabels(methodMap.size());
 					
 					mv.visitTableSwitchInsn(0, sLabels.length -1, sDefault, sLabels); //Switch init
 					
-					for ( int index = 0; index < methods.size(); index++ ){ //Switch branches for each field
-						mv.visitLabel(sLabels[index]);
+					int index = 0;
 					
-						//Add method invocation
-						mv.callJava(clazzType, methods.get(index));
+					for ( Entry<String, List<Method>> entry : methodMap.entrySet() ){ //Switch branches for each method
+						mv.visitLabel(sLabels[index++]);
 						
-						//Return how many values we pushed
+						methods.add(entry.getValue().get(0)); //TODO: REFACTOR
+						
+						mv.callJava(clazzType, entry.getValue());
 						mv.visitInsn(IRETURN);
 					}
-					
+						
 					mv.visitLabel(sDefault); //Create default branch
 				}
 			
@@ -250,6 +259,10 @@ public class ClassAccessorFactory {
 		if ( loader == null )
 			loader = ClassLoader.getSystemClassLoader();
 		
+		ClassReader reader 		= new ClassReader(cw.toByteArray());
+		TraceClassVisitor trace	= new TraceClassVisitor(new PrintWriter(System.out));
+			reader.accept(trace, 0);
+		
 		//Create instance
 		ClassAccessor access = Loader.createInstance(loader, cw.toByteArray(), accessName, ClassAccessor.class);
 			access.clazz	= clazz;
@@ -258,7 +271,7 @@ public class ClassAccessorFactory {
 			access.methods	= methods;
 		
 			access.constructors	= constructors;
-			
+		
 		return access;
 	}
 	

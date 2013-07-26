@@ -2,11 +2,13 @@ package hu.mentlerd.hybrid.asm;
 
 import hu.mentlerd.hybrid.CallFrame;
 import hu.mentlerd.hybrid.LuaTable;
+import hu.mentlerd.hybrid.asm.OverloadResolver.OverloadRule;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.objectweb.asm.ClassVisitor;
@@ -37,6 +39,8 @@ public class CoercionAdapter extends GeneratorAdapter{
 	protected static final Type TYPE_DOUBLE		= Type.getType( Double.class );
 	
 	protected static final Type TYPE_TABLE		= Type.getType( LuaTable.class );
+	protected static final Type TYPE_OBJECT		= Type.getType( Object.class );
+	
 	protected static final Type EXCEPTION		= Type.getType( IllegalArgumentException.class );
 	
 	protected static final String GET_ARG		= "(ILjava/lang/Class;)Ljava/lang/Object;";
@@ -86,42 +90,6 @@ public class CoercionAdapter extends GeneratorAdapter{
 		}
 		
 		return false;
-	}
-	
-	@Deprecated //Method overload resulving will be moved to bytecode, thats why this is deprecated
-	public static Class<?> getCoercedClass( Class<?> clazz ){
-		Type type = Type.getType(clazz);
-		
-		switch( type.getSort() ){
-			
-			//Primitives
-			case Type.BOOLEAN:	return Boolean.class;
-			case Type.CHAR:		return String.class;
-			
-			//Java numbers are coerced from Double objects
-			case Type.BYTE:		
-			case Type.SHORT:
-			case Type.INT:
-			case Type.FLOAT:
-			case Type.LONG:
-			case Type.DOUBLE:
-				return Double.class;
-			
-			case Type.OBJECT:
-				String clazzName = type.getInternalName();
-
-				//Non primitive numbers object are coerced from Double objects
-				if ( numberCoercionMap.containsKey(clazzName) )
-					return Double.class;
-				
-				return clazz;
-			
-			//Arrays are coerced from LuaTables
-			case Type.ARRAY:
-				return LuaTable.class;
-		}
-	
-		return null;
 	}
 	
 	/**
@@ -214,15 +182,15 @@ public class CoercionAdapter extends GeneratorAdapter{
 		boolean isVararg	= method.isVarArgs();
 		
 		int callType		= INVOKESTATIC;
-		
-		String name		= clazz.getInternalName();
+
+		String owner	= clazz.getInternalName();
 		Type pTypes[]	= Type.getArgumentTypes(method);
 				
 		loadArg(frameArgIndex);
 		
 		//Non static calls require an instance, and INVOKEVIRTUAL
 		if ( !isStatic ){
-			pullFrameArg(0, clazz, false);
+			pushFrameArg(0, clazz, false);
 			checkCast(clazz);
 			
 			callType = INVOKEVIRTUAL;
@@ -251,7 +219,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 			loadArg(frameArgIndex);
 		
 		//Call
-		visitMethodInsn(callType, name, method.getName(), Type.getMethodDescriptor(method));
+		visitMethodInsn(callType, owner, method.getName(), Type.getMethodDescriptor(method));
 		
 		if ( isSpecial ) //Special methods manage returning themselves
 			return;
@@ -269,19 +237,137 @@ public class CoercionAdapter extends GeneratorAdapter{
 		}	
 	}
 
-	public void pullFrameArg( int index, Type type, boolean allowNull ){
+	public void callJava( Type clazz, List<Method> methods ){
+		List<OverloadRule> rules = OverloadResolver.resolve(methods);
+		
+		//Some methods might get removed in the previous step, check if it is a case of overload still
+		if ( rules.size() < 2 ){
+			callJava(clazz, rules.get(0).method);
+			return;
+		}
+		
+		OverloadRule lastRule = rules.get( rules.size() -1 );
+		
+		boolean isStatic	= isStatic( lastRule.method );
+		
+		String owner	= clazz.getInternalName();
+		
+		int callType	= INVOKESTATIC;
+		int off			= 0;
+				
+		loadArg(frameArgIndex);
+		
+		//Non static calls require an instance, and INVOKEVIRTUAL
+		if ( !isStatic ){
+			pushFrameArg(0, clazz, false);
+			checkCast(clazz);
+			
+			callType = INVOKEVIRTUAL;
+			off = 1;
+		}
+		
+		//Start processing rules, and storing variables
+		int lastParamCount 		= -1;
+		
+		Label nextArgBranch		= null;
+		Label nextValueBranch	= null;
+		
+		Label finish			= new Label();
+		
+		//Extract parameter count
+		int argCount = newLocal(Type.INT_TYPE);
+		
+		pushFrameArgCount();
+		storeLocal(argCount);
+		
+		//Create branches based off rules
+		for ( OverloadRule rule : rules ){
+			int paramCount = rule.paramCount;
+			
+			if ( lastParamCount != paramCount ){ //Argument count mismatch, new branch
+				visitIfValid(nextArgBranch);
+				nextArgBranch = new Label();
+				
+				//Check argument count, on failure jump to next count check
+				push(paramCount);
+				loadLocal(argCount);
+				
+				visitJumpInsn(IF_ICMPLT, nextArgBranch);
+			}
+			
+			if ( rule.paramType != null ){ //Check argument class
+				visitIfValid(nextValueBranch);
+				nextValueBranch = new Label();
+					
+				pushFrameArg(rule.paramIndex + off, TYPE_OBJECT, true);
+				
+				//Check instance, if invalid jump to next type check
+				visitTypeInsn(INSTANCEOF, getCoercedType(rule.paramType).getInternalName());
+				
+				visitJumpInsn(IFEQ, nextValueBranch);
+			}
+			
+			//Everything passed. Extract parameters from locals, and the frame
+			Method method	= rule.method;
+			Type[] pTypes 	= Type.getArgumentTypes(method);
+			
+			for ( int index = 0; index < paramCount; index++ )
+				coerceFrameArg(index + off, pTypes[index]);
+			
+			//Call
+			visitMethodInsn(callType, owner, method.getName(), Type.getMethodDescriptor(method));
+			
+			//Check if there are arguments to return
+			Type rType = Type.getReturnType(method);
+			
+			if ( rType != Type.VOID_TYPE ) {
+				varToLua(rType); //Coerce return, and push on CallFrame
+				visitMethodInsn(INVOKEVIRTUAL, FRAME, "push", PUSH);
+				
+				visitInsn(ICONST_1);
+			} else {
+				visitInsn(ICONST_0);
+			}	
+			
+			visitJumpInsn(GOTO, finish);
+			
+			//Prepare next rule
+			lastParamCount = paramCount;
+		}
+		
+		//Fail branch
+		visitIfValid(nextArgBranch);
+		visitIfValid(nextValueBranch);
+		
+		throwException(EXCEPTION, "Unable to resolve overloaded call");
+		
+		//Finish
+		visitLabel(finish);
+	}
+	
+	private void visitIfValid(Label label) {
+		if ( label != null )
+			visitLabel(label);
+	}
+	
+	public void pushFrameArg( int index, Type type, boolean allowNull ){
 		loadArg(frameArgIndex);
 		push(index);
 		
-		pullFrameArg(type, allowNull);
+		pushFrameArg(type, allowNull);
 	}
-	private void pullFrameArg( Type type, boolean allowNull ){
+	private void pushFrameArg( Type type, boolean allowNull ){
 		push(type);
 		
 		if ( allowNull )
 			visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArgNull", GET_ARG);
 		else
 			visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArg", GET_ARG);
+	}
+	
+	public void pushFrameArgCount(){
+		loadArg(frameArgIndex);
+		visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArgCount", GET_ARG_COUNT);
 	}
 	
 	public void coerceFrameVarargs( int from, Type arrayType ){
@@ -308,8 +394,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 		Label loopEnd	= new Label();
 		
 		//Loop init
-		loadArg(frameArgIndex);
-		visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArgCount", GET_ARG_COUNT);
+		pushFrameArgCount();
 		
 		push(from);
 		visitInsn(ISUB);
@@ -339,7 +424,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 		push(from);
 		visitInsn(IADD);
 		
-		pullFrameArg(getCoercedType(entry), canCoerceNull(entry));
+		pushFrameArg(getCoercedType(entry), canCoerceNull(entry));
 		
 		//Store
 		arrayStore(entry);
@@ -362,7 +447,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 		Type coerced = getCoercedType(type);	
 		
 		//Pull the parameter on the stack
-		pullFrameArg(index, coerced, canCoerceNull(type));
+		pushFrameArg(index, coerced, canCoerceNull(type));
 		luaToVar(type);
 	}
 	
