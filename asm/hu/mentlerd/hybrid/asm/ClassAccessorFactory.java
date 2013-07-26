@@ -179,7 +179,7 @@ public class ClassAccessorFactory {
 						mv.visitLabel(sLabels[index]);
 					
 						//Add method invocation
-						mv.callToJava(clazzType, methods.get(index));
+						mv.callJava(clazzType, methods.get(index));
 						
 						//Return how many values we pushed
 						mv.visitInsn(IRETURN);
@@ -197,6 +197,7 @@ public class ClassAccessorFactory {
 		//void create( int, CallFrame )
 		{
 			mv = new CoercionAdapter(cw, ACC_PUBLIC, "create", CREATE);
+			mv.frameArgIndex = 1;
 			
 			mv.visitCode();
 				
@@ -222,7 +223,7 @@ public class ClassAccessorFactory {
 						
 						//Unpack, and coerce arguments
 						for ( int pIndex = 0; pIndex < pClasses.length; pIndex++ )
-							mv.coerceFrameArg(pIndex, pClasses[pIndex]);
+							mv.coerceFrameArg(pIndex, Type.getType(pClasses[pIndex]));
 						
 						//Initialize the object, and push back
 						mv.visitMethodInsn(INVOKESPECIAL, clazzNameAsm, "<init>", Type.getConstructorDescriptor(constructor));

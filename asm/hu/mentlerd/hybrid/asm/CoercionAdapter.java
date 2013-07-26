@@ -4,6 +4,7 @@ import hu.mentlerd.hybrid.CallFrame;
 import hu.mentlerd.hybrid.LuaTable;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -38,10 +39,11 @@ public class CoercionAdapter extends GeneratorAdapter{
 	protected static final Type TYPE_TABLE		= Type.getType( LuaTable.class );
 	protected static final Type EXCEPTION		= Type.getType( IllegalArgumentException.class );
 	
-	protected static final String GET_ARG	= "(ILjava/lang/Class;)Ljava/lang/Object;";
-	protected static final String PUSH		= "(Ljava/lang/Object;)V";
-
+	protected static final String GET_ARG		= "(ILjava/lang/Class;)Ljava/lang/Object;";
+	protected static final String GET_ARG_COUNT	= "()I";
 	
+	protected static final String PUSH			= "(Ljava/lang/Object;)V";
+
 	protected static Map<String, Integer> numberCoercionMap = new HashMap<String, Integer>();
 	
 	static{
@@ -56,7 +58,11 @@ public class CoercionAdapter extends GeneratorAdapter{
 	private static Type getEntryType( Type array ){
 		return Type.getType( array.getInternalName().substring(1) );
 	}
-		
+	
+	public static boolean isStatic( Method method ){
+		return Modifier.isStatic( method.getModifiers() );
+	}
+	
 	/**
 	 * Tells if a null value can be coerced into the target class
 	 * 
@@ -81,13 +87,6 @@ public class CoercionAdapter extends GeneratorAdapter{
 		
 		return false;
 	}
-	
-	/**
-	 * Returns the class required to be on the stack to coerce it into the target class.
-	 * 
-	 * @param clazz The target class
-	 * @return The class required on the stack
-	 */
 	
 	@Deprecated //Method overload resulving will be moved to bytecode, thats why this is deprecated
 	public static Class<?> getCoercedClass( Class<?> clazz ){
@@ -125,6 +124,12 @@ public class CoercionAdapter extends GeneratorAdapter{
 		return null;
 	}
 	
+	/**
+	 * Returns the type required to be on the stack to coerce it into the target type.
+	 * 
+	 * @param type The target type
+	 * @return The type required on the stack
+	 */
 	public static Type getCoercedType( Type type ){	
 		switch( type.getSort() ){
 			
@@ -159,6 +164,40 @@ public class CoercionAdapter extends GeneratorAdapter{
 		}
 	}
 
+	/**
+	 * Tells whether the method passes is a valid @LuaMethod
+	 * 
+	 * (Its return type is int, and only the last parameter is a CallFrame)
+	 * @param method
+	 * @return
+	 */
+	public static final boolean isMethodSpecial( Method method ){
+		if ( !method.isAnnotationPresent( LuaMethod.class ) || method.isVarArgs() )
+			return false;
+		
+		Type[] rTypes	= Type.getArgumentTypes(method);
+		Type rType		= Type.getReturnType(method);
+		
+		//Check for integer return type
+		if ( rType != Type.INT_TYPE )	
+			return false;
+		
+		//Check for CallFrame parameter
+		int params = rTypes.length;
+		
+		if ( params == 0 )
+			return false;
+		
+		Type last = rTypes[params -1];
+		
+		if ( last.getSort() != Type.OBJECT || !last.getInternalName().equals(FRAME) )
+			return false;
+		
+		return true;
+	}
+
+	
+	
 	protected int frameArgIndex = -1;
 	
 	public CoercionAdapter(MethodVisitor mv, int access, String name, String desc) {
@@ -168,79 +207,162 @@ public class CoercionAdapter extends GeneratorAdapter{
 		super(cw.visitMethod(access, name, desc, null, null), access, name, desc);
 	}
 	
-	public void callToJava( Type clazz, Method method ){
-		boolean isStatic	= AsmHelper.isStatic( method );
-		int pCallType		= INVOKESTATIC;
+	public void callJava( Type clazz, Method method ){
+		boolean isStatic	= isStatic(method);
 		
-		String name			= clazz.getInternalName();
-		Class<?>[] pClasses	= method.getParameterTypes();
+		boolean isSpecial	= isMethodSpecial(method);
+		boolean isVararg	= method.isVarArgs();
 		
+		int callType		= INVOKESTATIC;
+		
+		String name		= clazz.getInternalName();
+		Type pTypes[]	= Type.getArgumentTypes(method);
+				
 		loadArg(frameArgIndex);
 		
 		//Non static calls require an instance, and INVOKEVIRTUAL
 		if ( !isStatic ){
-			visitInsn(DUP);
+			pullFrameArg(0, clazz, false);
+			checkCast(clazz);
 			
-			visitInsn(ICONST_0); //CallFrame.getArg( 0, clazz )
-			visitLdcInsn(clazz);
-			visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArg", GET_ARG);
-			
-			visitTypeInsn(CHECKCAST, clazz.getInternalName());
-				
-			pCallType = INVOKEVIRTUAL;
+			callType = INVOKEVIRTUAL;
 		}
 		
-		//Check LuaMethod annotation for details
-		if ( AsmHelper.isMethodSpecial( method ) ){
-			
-			//The only variable is the CallFrame itself
+		//Extract parameters to the stack
+		int params 	= pTypes.length;
+		int off		= 1;
+		
+		if ( isVararg || isSpecial ) //Last parameter is handled differently
+			params -= 1;
+		
+		if ( isStatic ) //No instance required for static methods 
+			off -= 1;
+		
+		//Extract parameters
+		for ( int index = 0; index < params; index++ )
+			coerceFrameArg(index + off, pTypes[index]);
+	
+		//Extract varargs
+		if ( isVararg )
+			coerceFrameVarargs(params, pTypes[params]);
+		
+		//Push the callframe
+		if ( isSpecial )
 			loadArg(frameArgIndex);
-			
-			//Call
-			visitMethodInsn(pCallType, name, method.getName(), Type.getMethodDescriptor(method));
 		
+		//Call
+		visitMethodInsn(callType, name, method.getName(), Type.getMethodDescriptor(method));
+		
+		if ( isSpecial ) //Special methods manage returning themselves
+			return;
+		
+		//Check if there are arguments to return
+		Type rType = Type.getReturnType(method);
+		
+		if ( rType != Type.VOID_TYPE ) {
+			varToLua(rType); //Coerce return, and push on CallFrame
+			visitMethodInsn(INVOKEVIRTUAL, FRAME, "push", PUSH);
+			
+			visitInsn(ICONST_1);
 		} else {
-			
-			//Put variables to the stack as usual
-			for ( int pIndex = 0; pIndex < pClasses.length; pIndex++ ){ //Setup arguments
-				//CallFrame.getArg( int, coercedClass )
-				//In case of non static calls, offset arguments by 1
-				coerceFrameArg(isStatic ? pIndex : pIndex +1, pClasses[pIndex]);
-			}
-			
-			//Call
-			visitMethodInsn(pCallType, name, method.getName(), Type.getMethodDescriptor(method));
-
-			//Check if there are arguments to return
-			Type rType = Type.getReturnType(method);
-			
-			if ( rType != Type.VOID_TYPE ) {
-				varToLua(rType); //Coerce return, and push on CallFrame
-				visitMethodInsn(INVOKEVIRTUAL, FRAME, "push", CoercionAdapter.PUSH);
-				
-				visitInsn(ICONST_1);
-			} else {
-				visitInsn(ICONST_0);
-			}
-			
-		}
+			visitInsn(ICONST_0);
+		}	
 	}
-	
-	
-	public void coerceFrameArg( int index, Class<?> clazz ){
-		Type type    = Type.getType(clazz);
-		Type coerced = Type.getType(CoercionAdapter.getCoercedClass(clazz));	
-		
-		//Pull the parameter on the stack
+
+	public void pullFrameArg( int index, Type type, boolean allowNull ){
 		loadArg(frameArgIndex);
 		push(index);
-		push(coerced);
 		
-		if ( canCoerceNull(type) )
+		pullFrameArg(type, allowNull);
+	}
+	private void pullFrameArg( Type type, boolean allowNull ){
+		push(type);
+		
+		if ( allowNull )
 			visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArgNull", GET_ARG);
 		else
 			visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArg", GET_ARG);
+	}
+	
+	public void coerceFrameVarargs( int from, Type arrayType ){
+		Type entry	= getEntryType(arrayType);
 		
+		int array	= newLocal(arrayType);
+		
+		int limit	= newLocal(Type.INT_TYPE);
+		int counter	= newLocal(Type.INT_TYPE);
+		
+		/*
+		 * in frame
+		 * 
+		 * limit = frame.getArgCount() - params
+		 * array = new array[limit]
+		 * 
+		 * for ( int i = 0; i < limit; i++ )
+		 *    array[i] = coerceFrameArg( i + params, clazz )
+		 *    
+		 * push array
+		 */
+		
+		Label loopBody	= new Label();
+		Label loopEnd	= new Label();
+		
+		//Loop init
+		loadArg(frameArgIndex);
+		visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArgCount", GET_ARG_COUNT);
+		
+		push(from);
+		visitInsn(ISUB);
+		
+		visitInsn(DUP); //frame.getArgCount() - params
+		storeLocal(limit);
+		
+		newArray(entry); //new array[limit]
+		storeLocal(array);
+		
+		visitInsn(ICONST_0);
+		storeLocal(counter);
+		
+		visitJumpInsn(GOTO, loopEnd);
+		
+		//Loop body
+		visitLabel(loopBody);
+		
+		//Prepare array
+		loadLocal(array);
+		loadLocal(counter);
+		
+		//Pull argument from the stack
+		loadArg(frameArgIndex);
+		loadLocal(counter);
+		
+		push(from);
+		visitInsn(IADD);
+		
+		pullFrameArg(getCoercedType(entry), canCoerceNull(entry));
+		
+		//Store
+		arrayStore(entry);
+		
+		iinc(counter, 1);
+		
+		//Loop end
+		visitLabel(loopEnd);
+		
+		loadLocal(counter);
+		loadLocal(limit);
+
+		visitJumpInsn(IF_ICMPLT, loopBody);
+		
+		//'Return'
+		loadLocal(array);
+	}
+	
+	public void coerceFrameArg( int index, Type type ){
+		Type coerced = getCoercedType(type);	
+		
+		//Pull the parameter on the stack
+		pullFrameArg(index, coerced, canCoerceNull(type));
 		luaToVar(type);
 	}
 	
@@ -428,7 +550,6 @@ public class CoercionAdapter extends GeneratorAdapter{
 				break;
 		}
 	}
-
 	
 	public void varToLua( Type type ){	
 		switch( type.getSort() ){

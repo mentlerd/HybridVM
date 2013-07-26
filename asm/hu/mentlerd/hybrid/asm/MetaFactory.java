@@ -126,7 +126,7 @@ public class MetaFactory {
 		for ( int methodID = 0; methodID < methods.size(); methodID++ ){
 			Method method = methods.get(methodID);
 			
-			if ( AsmHelper.isStatic(method) == isStatic ){
+			if ( CoercionAdapter.isStatic(method) == isStatic ){
 				String name = method.getName();
 				
 				target.rawset(name, new MethodReference(access, methodID, origin + name));	

@@ -243,7 +243,7 @@ public class SuperMetaFactory {
 		for ( int index = 0; index < methods.size(); index++ ){
 			Method method = methods.get(index);
 			
-			if ( AsmHelper.isStatic(method) != isStatic )
+			if ( CoercionAdapter.isStatic(method) != isStatic )
 				continue;
 			
 			String name 		= method.getName();
