@@ -53,9 +53,12 @@ public class ClassAccessorFactory {
 	private static ClassAccessor generate( Class<?> clazz ){
 		Constructor<?>[] constructors = clazz.getConstructors();
 		
-		List<Field> fields   = getValidFields(clazz);
-		List<Method> methods = getValidMethods(clazz);
-	
+		List<Field> fields   	= getValidFields(clazz);
+		List<Method> methods 	= getValidMethods(clazz);
+		List<String> overloads	= new ArrayList<String>();
+		
+		Map<String, List<Method>> overloadMap = OverloadResolver.mapOverloaded(methods);
+		
 		//ASM pass
 		String clazzName	= clazz.getName();
 		String accessName	= clazzName + "Accessor";
@@ -167,30 +170,24 @@ public class ClassAccessorFactory {
 		
 		//void call( int, CallFrame )
 		{		
-			Map<String, List<Method>> methodMap = OverloadResolver.mapMethods(methods);
-			methods.clear(); //TODO: Refactor this to its proper place
-			
 			mv = new CoercionAdapter(cw, ACC_PUBLIC, "call", CALL);
 			mv.frameArgIndex = 1;
 			
 			mv.visitCode();
 				
-				if ( !methodMap.isEmpty() ){
+				if ( !methods.isEmpty() ){
 					mv.visitVarInsn(ILOAD, 1); //Load index
 					
 					Label sDefault 	= new Label(); //Switch labels
-					Label[] sLabels = AsmHelper.createLabels(methodMap.size());
+					Label[] sLabels = AsmHelper.createLabels(methods.size());
 					
 					mv.visitTableSwitchInsn(0, sLabels.length -1, sDefault, sLabels); //Switch init
 					
 					int index = 0;
-					
-					for ( Entry<String, List<Method>> entry : methodMap.entrySet() ){ //Switch branches for each method
+					for ( Method method : methods ){ //Switch branches for each method
 						mv.visitLabel(sLabels[index++]);
 						
-						methods.add(entry.getValue().get(0)); //TODO: REFACTOR
-						
-						mv.callJava(clazzType, entry.getValue());
+						mv.callJava(clazzType, method);
 						mv.visitInsn(IRETURN);
 					}
 						
@@ -199,6 +196,37 @@ public class ClassAccessorFactory {
 			
 				mv.throwException(EXCEPTION, "Illegal method index");
 				
+				mv.visitMaxs(0, 0);
+			mv.visitEnd();
+		}
+		
+		//int resolve( int, CallFrame )
+		{
+			mv = new CoercionAdapter(cw, ACC_PUBLIC, "resolve", CALL);
+			mv.frameArgIndex = 1;
+			
+			mv.visitCode();
+			
+				if ( !overloadMap.isEmpty() ){
+					mv.visitVarInsn(ILOAD, 1);
+					
+					Label sDefault	= new Label();
+					Label[] sLabels	= AsmHelper.createLabels(overloadMap.size());
+					
+					mv.visitTableSwitchInsn(0, sLabels.length -1, sDefault, sLabels); //Switch init
+					
+					int index = 0;
+					for ( Entry<String, List<Method>> entry : overloadMap.entrySet() ){
+						mv.visitLabel(sLabels[index++]);
+						
+						overloads.add(entry.getKey());
+						
+						mv.callJava(clazzType, entry.getValue());
+						mv.visitInsn(IRETURN);
+					}
+					
+				}
+			
 				mv.visitMaxs(0, 0);
 			mv.visitEnd();
 		}
@@ -267,9 +295,10 @@ public class ClassAccessorFactory {
 		ClassAccessor access = Loader.createInstance(loader, cw.toByteArray(), accessName, ClassAccessor.class);
 			access.clazz	= clazz;
 			
-			access.fields	= fields;
-			access.methods	= methods;
-		
+			access.fields		= fields;
+			access.methods		= methods;
+			access.overloads	= overloads;
+			
 			access.constructors	= constructors;
 		
 		return access;

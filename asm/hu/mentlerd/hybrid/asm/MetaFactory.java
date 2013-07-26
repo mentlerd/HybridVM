@@ -35,6 +35,17 @@ public class MetaFactory {
 		}
 	}
 	
+	public static class OverloadReference extends MethodReference{
+
+		public OverloadReference(ClassAccessor access, int methodID, String source) {
+			super(access, methodID, source);
+		}
+		
+		public int call(CallFrame frame, int argCount){
+			return access.resolve(index, frame);
+		}
+	}
+	
 	public static class ConstructorReference extends MethodReference{
 
 		public ConstructorReference(ClassAccessor access, int methodID) {
@@ -121,7 +132,9 @@ public class MetaFactory {
 		
 		//Create static method references
 		String origin		 = access.getAccessedClass().getSimpleName() + ".";
-		List<Method> methods = access.getMethods();
+		
+		List<Method> methods 	= access.getMethods();
+		List<String> overloads	= access.getOverloads();
 		
 		for ( int methodID = 0; methodID < methods.size(); methodID++ ){
 			Method method = methods.get(methodID);
@@ -129,8 +142,17 @@ public class MetaFactory {
 			if ( CoercionAdapter.isStatic(method) == isStatic ){
 				String name = method.getName();
 				
+				if ( overloads.contains(name) )
+					continue;
+				
 				target.rawset(name, new MethodReference(access, methodID, origin + name));	
 			}
+		}
+		
+		for ( int overloadID = 0; overloadID < overloads.size(); overloadID++ ){
+			String name = overloads.get(overloadID);
+			
+			target.rawset(name, new OverloadReference(access, overloadID, name));
 		}
 		
 		return target;

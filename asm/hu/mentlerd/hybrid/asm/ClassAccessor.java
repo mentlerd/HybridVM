@@ -12,7 +12,9 @@ public abstract class ClassAccessor{
 	
 	protected Constructor<?>[] constructors;
 	protected List<Field> fields;
+	
 	protected List<Method> methods;
+	protected List<String> overloads;
 	
 	public Class<?> getAccessedClass(){
 		return clazz;
@@ -24,8 +26,12 @@ public abstract class ClassAccessor{
 	public List<Field> getFields(){
 		return fields;
 	}
+	
 	public List<Method> getMethods(){
 		return methods;
+	}
+	public List<String> getOverloads(){
+		return overloads;
 	}
 	
 	//These methods are generated runtime
@@ -33,5 +39,7 @@ public abstract class ClassAccessor{
 	public abstract void setField( Object var, int index, Object value );
 	
 	public abstract int call( int index, CallFrame frame );
+	public abstract int resolve( int index, CallFrame frame );
+	
 	public abstract void create( int index, CallFrame frame );
 }

@@ -68,9 +68,10 @@ public class OverloadResolver implements Comparator<Method>{
 	}
 	
 	
-	public static Map<String, List<Method>> mapMethods( List<Method> methods ){
+	public static Map<String, List<Method>> mapOverloaded( List<Method> methods ){
 		HashMap<String, List<Method>> map = new HashMap<String, List<Method>>();
 		
+		//Group methods by name
 		for ( Method method : methods ){
 			String name = method.getName();
 			List<Method> list = map.get(name);
@@ -79,6 +80,16 @@ public class OverloadResolver implements Comparator<Method>{
 				map.put(name, list = new ArrayList<Method>());
 			
 			list.add(method);
+		}
+		
+		//Remove single methods from the map
+		for ( String name : map.keySet() ){
+			List<Method> overloads = map.get(name);
+			
+			resolveOverrides(overloads);
+			
+			if ( overloads.size() < 2 )
+				map.remove(name);
 		}
 		
 		return map;

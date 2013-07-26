@@ -240,12 +240,6 @@ public class CoercionAdapter extends GeneratorAdapter{
 	public void callJava( Type clazz, List<Method> methods ){
 		List<OverloadRule> rules = OverloadResolver.resolve(methods);
 		
-		//Some methods might get removed in the previous step, check if it is a case of overload still
-		if ( rules.size() < 2 ){
-			callJava(clazz, rules.get(0).method);
-			return;
-		}
-		
 		OverloadRule lastRule = rules.get( rules.size() -1 );
 		
 		boolean isStatic	= isStatic( lastRule.method );
