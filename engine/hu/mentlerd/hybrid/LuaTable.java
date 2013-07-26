@@ -123,21 +123,18 @@ public class LuaTable implements Iterable<Object>{
 			if ( slot == 0 ) //Negative 0 is still 0
 				key = 0D;
 			
-			if ( index == slot && fillArraySlot(slot -1, value) )
+			if ( index == slot && setArraySlot(slot -1, value) )
 				return; //The array accepted the value
 		}
 		
-		int slot = getHashSlot(key);
-		
-		if ( value == null ){
-			if ( hashKeys[slot] != null )
-				clearHashSlot(slot);
-		} else {
-			fillHashSlot(slot, key, value);
-		}
+		setHashSlot(key, value);
 	}
+	
 	public void rawset( int key, Object value ){
-		rawset( Double.valueOf(key), value ); //TODO!
+		if ( setArraySlot(key -1, value) )
+			return;
+		
+		setHashSlot(Double.valueOf(key), value);
 	}
 	
 	public int size(){
@@ -252,7 +249,7 @@ public class LuaTable implements Iterable<Object>{
 	/*
 	 * Array
 	 */
-	private boolean fillArraySlot( int slot, Object value ){
+	protected boolean setArraySlot( int slot, Object value ){
 		if ( slot < 0 ) return false;
 		
 		if ( slot < arrayCapacity ){
@@ -273,7 +270,7 @@ public class LuaTable implements Iterable<Object>{
 				return false;
 			}
 			
-			return fillArraySlot(slot, value);
+			return setArraySlot(slot, value);
 		}
 		
 		return false;
@@ -302,6 +299,17 @@ public class LuaTable implements Iterable<Object>{
 		return hashSlot;
 	}
 	
+	protected void setHashSlot( Object key, Object value ){
+		int slot = getHashSlot(key);
+		
+		if ( value == null ){
+			if ( hashKeys[slot] != null )
+				clearHashSlot(slot);
+		} else {
+			fillHashSlot(slot, key, value);
+		}
+	}
+	
 	private void fillHashSlot( int slot, Object key, Object value ){
 		boolean isNew = ( hashKeys[slot] == null );
 		
@@ -316,29 +324,7 @@ public class LuaTable implements Iterable<Object>{
 		}
 	}
 
-	private void expandHash(){
-		int oldSize = hashCapacity;
-		hashCapacity = oldSize << 1;
-			
-		Object[] oldKeys   = hashKeys;
-		Object[] oldValues = hashValues;
-		
-		hashKeys   = new Object[hashCapacity];
-		hashValues = new Object[hashCapacity];
-		
-		for ( int i = 0; i < oldSize; i++ ){
-			Object oldKey = oldKeys[i];
-			
-			if ( oldKey != null ){
-				int slot = getHashSlot(oldKey);
-				
-				hashKeys[slot]   = oldKey;
-				hashValues[slot] = oldValues[i];
-			}
-		}
-	}
-	
-	protected void clearHashSlot( int removed ){
+	private void clearHashSlot( int removed ){
 		if ( hashKeys[removed] == null ) return;
 		
 		int space = removed;
@@ -367,4 +353,26 @@ public class LuaTable implements Iterable<Object>{
 		hashEntries--;
 	}
 	
+	private void expandHash(){
+		int oldSize = hashCapacity;
+		hashCapacity = oldSize << 1;
+			
+		Object[] oldKeys   = hashKeys;
+		Object[] oldValues = hashValues;
+		
+		hashKeys   = new Object[hashCapacity];
+		hashValues = new Object[hashCapacity];
+		
+		for ( int i = 0; i < oldSize; i++ ){
+			Object oldKey = oldKeys[i];
+			
+			if ( oldKey != null ){
+				int slot = getHashSlot(oldKey);
+				
+				hashKeys[slot]   = oldKey;
+				hashValues[slot] = oldValues[i];
+			}
+		}
+	}
+		
 }
