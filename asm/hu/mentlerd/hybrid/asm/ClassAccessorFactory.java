@@ -26,7 +26,7 @@ public class ClassAccessorFactory {
 	
 	protected static final String ACCESSOR	= AsmHelper.getAsmName( ClassAccessor.class );
 	protected static final String OBJECT	= AsmHelper.getAsmName( Object.class );
-	
+
 	protected static final String FRAME		= AsmHelper.getAsmName( CallFrame.class );
 	
 	// Generated method signatures
@@ -255,8 +255,6 @@ public class ClassAccessorFactory {
 						
 						mv.visitLabel(sLabels[index]);
 						
-						mv.visitVarInsn(ALOAD, 2); //CallFrame
-	
 						//Construct object
 						mv.visitTypeInsn(NEW, clazzNameAsm);
 						mv.visitInsn(DUP);
@@ -268,7 +266,7 @@ public class ClassAccessorFactory {
 						//Initialize the object, and push back
 						mv.visitMethodInsn(INVOKESPECIAL, clazzNameAsm, "<init>", Type.getConstructorDescriptor(constructor));
 						mv.varToLua(clazzType);
-						mv.visitMethodInsn(INVOKEVIRTUAL, FRAME, "push", CoercionAdapter.PUSH);
+						mv.popToFrame();
 						
 						mv.visitInsn(RETURN);
 					}

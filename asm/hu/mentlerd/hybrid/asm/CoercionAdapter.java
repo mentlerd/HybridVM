@@ -25,15 +25,13 @@ public class CoercionAdapter extends GeneratorAdapter{
 	protected static final String TABLE		= AsmHelper.getAsmName( LuaTable.class );	
 	protected static final String FRAME		= AsmHelper.getAsmName( CallFrame.class );
 
-	protected static final Type OBJ_BOOLEAN	= Type.getType( Boolean.class );
+	protected static final Type OBJ_BOOLEAN		= Type.getType( Boolean.class );
 	protected static final Type OBJ_DOUBLE		= Type.getType( Double.class );
 	
 	protected static final Type OBJ_TABLE		= Type.getType( LuaTable.class );
 	protected static final Type OBJ_OBJECT		= Type.getType( Object.class );
 	
 	protected static final Type EXCEPTION		= Type.getType( IllegalArgumentException.class );
-	
-	protected static final String PUSH			= "(Ljava/lang/Object;)V";
 
 	protected static Map<String, Type> numberCoercionMap = new HashMap<String, Type>();
 	
@@ -175,8 +173,6 @@ public class CoercionAdapter extends GeneratorAdapter{
 
 		String owner	= clazz.getInternalName();
 		Type pTypes[]	= Type.getArgumentTypes(method);
-				
-		loadArg(frameArgIndex);
 		
 		//Non static calls require an instance, and INVOKEVIRTUAL
 		if ( !isStatic ){
@@ -219,7 +215,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 		
 		if ( rType != Type.VOID_TYPE ) {
 			varToLua(rType); //Coerce return, and push on CallFrame
-			visitMethodInsn(INVOKEVIRTUAL, FRAME, "push", PUSH);
+			popToFrame();
 			
 			visitInsn(ICONST_1);
 		} else {
@@ -238,8 +234,6 @@ public class CoercionAdapter extends GeneratorAdapter{
 		
 		int callType	= INVOKESTATIC;
 		int off			= 0;
-				
-		loadArg(frameArgIndex);
 		
 		//Non static calls require an instance, and INVOKEVIRTUAL
 		if ( !isStatic ){
@@ -306,7 +300,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 			
 			if ( rType != Type.VOID_TYPE ) {
 				varToLua(rType); //Coerce return, and push on CallFrame
-				visitMethodInsn(INVOKEVIRTUAL, FRAME, "push", PUSH);
+				popToFrame();
 				
 				visitInsn(ICONST_1);
 			} else {
@@ -352,6 +346,13 @@ public class CoercionAdapter extends GeneratorAdapter{
 	public void pushFrameArgCount(){
 		loadArg(frameArgIndex);
 		visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArgCount", "()I");
+	}
+	
+	public void popToFrame(){
+		loadArg(frameArgIndex);
+		swap();
+		
+		visitMethodInsn(INVOKEVIRTUAL, FRAME, "push", "(Ljava/lang/Object;)V");
 	}
 	
 	public void coerceFrameVarargs( int from, Type arrayType ){
