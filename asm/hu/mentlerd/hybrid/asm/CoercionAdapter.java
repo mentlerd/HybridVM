@@ -332,8 +332,6 @@ public class CoercionAdapter extends GeneratorAdapter{
 		
 		String method = allowNull ? "getArgNull" : "getArg";
 		visitMethodInsn(INVOKEVIRTUAL, FRAME, method, "(ILjava/lang/Class;)Ljava/lang/Object;");
-		
-		checkCast(type);
 	}
 
 	//Frame utils
@@ -457,6 +455,8 @@ public class CoercionAdapter extends GeneratorAdapter{
 					cast(INT_TYPE, CHAR_TYPE);
 					
 					valueOf(CHAR_TYPE);
+				} else {
+					checkCast(type);
 				}
 				
 				break;
