@@ -83,14 +83,19 @@ public class OverloadResolver implements Comparator<Method>{
 		}
 		
 		//Remove single methods from the map
+		List<String> remove = new ArrayList<String>();
+		
 		for ( String name : map.keySet() ){
 			List<Method> overloads = map.get(name);
 			
 			resolveOverrides(overloads);
 			
 			if ( overloads.size() < 2 )
-				map.remove(name);
+				remove.add(name);
 		}
+		
+		for ( String key : remove )
+			map.remove(key);
 		
 		return map;
 	}

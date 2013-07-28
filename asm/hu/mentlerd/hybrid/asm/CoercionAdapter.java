@@ -21,42 +21,28 @@ import static org.objectweb.asm.Opcodes.*;
 import static org.objectweb.asm.Type.*;
 
 public class CoercionAdapter extends GeneratorAdapter{
-
-	protected static final String BOOLEAN	= "java/lang/Boolean";
-	protected static final String BYTE		= "java/lang/Byte";
-	protected static final String CHAR		= "java/lang/Character";
-	protected static final String SHORT		= "java/lang/Short";
-	protected static final String INT		= "java/lang/Integer";
-	protected static final String FLOAT		= "java/lang/Float";
-	protected static final String LONG		= "java/lang/Long";
-	protected static final String DOUBLE	= "java/lang/Double";
 	
-	protected static final String STRING	= "java/lang/String";
 	protected static final String TABLE		= AsmHelper.getAsmName( LuaTable.class );	
 	protected static final String FRAME		= AsmHelper.getAsmName( CallFrame.class );
 
-	protected static final Type TYPE_BOOLEAN	= Type.getType( Boolean.class );
-	protected static final Type TYPE_STRING		= Type.getType( String.class );
-	protected static final Type TYPE_DOUBLE		= Type.getType( Double.class );
+	protected static final Type OBJ_BOOLEAN	= Type.getType( Boolean.class );
+	protected static final Type OBJ_DOUBLE		= Type.getType( Double.class );
 	
-	protected static final Type TYPE_TABLE		= Type.getType( LuaTable.class );
-	protected static final Type TYPE_OBJECT		= Type.getType( Object.class );
+	protected static final Type OBJ_TABLE		= Type.getType( LuaTable.class );
+	protected static final Type OBJ_OBJECT		= Type.getType( Object.class );
 	
 	protected static final Type EXCEPTION		= Type.getType( IllegalArgumentException.class );
 	
-	protected static final String GET_ARG		= "(ILjava/lang/Class;)Ljava/lang/Object;";
-	protected static final String GET_ARG_COUNT	= "()I";
-	
 	protected static final String PUSH			= "(Ljava/lang/Object;)V";
 
-	protected static Map<String, Integer> numberCoercionMap = new HashMap<String, Integer>();
+	protected static Map<String, Type> numberCoercionMap = new HashMap<String, Type>();
 	
 	static{
-		numberCoercionMap.put(BYTE,		Type.BYTE);
-		numberCoercionMap.put(SHORT,	Type.SHORT);
-		numberCoercionMap.put(INT,		Type.INT);
-		numberCoercionMap.put(FLOAT,	Type.FLOAT);
-		numberCoercionMap.put(LONG, 	Type.LONG);
+		numberCoercionMap.put("java/lang/Byte",		BYTE_TYPE);
+		numberCoercionMap.put("java/lang/Short",	SHORT_TYPE);
+		numberCoercionMap.put("java/lang/Integer",	INT_TYPE);
+		numberCoercionMap.put("java/lang/Float",	FLOAT_TYPE);
+		numberCoercionMap.put("java/lang/Long", 	LONG_TYPE);
 	}
 	
 	//This method is here for nested tables: [[I -> [I
@@ -103,30 +89,33 @@ public class CoercionAdapter extends GeneratorAdapter{
 		switch( type.getSort() ){
 			
 			//Primitives
-			case Type.BOOLEAN:	return TYPE_BOOLEAN;
-			case Type.CHAR:		return TYPE_STRING;
+			case Type.BOOLEAN:	
+				return OBJ_BOOLEAN;
 			
 			//Java numbers are coerced from Double objects
 			case Type.BYTE:		
+			case Type.CHAR:
 			case Type.SHORT:
 			case Type.INT:
+			
 			case Type.FLOAT:
 			case Type.LONG:
+			
 			case Type.DOUBLE:
-				return TYPE_DOUBLE;
+				return OBJ_DOUBLE;
 			
 			case Type.OBJECT:
 				String clazzName = type.getInternalName();
 
 				//Non primitive numbers object are coerced from Double objects
 				if ( numberCoercionMap.containsKey(clazzName) )
-					return TYPE_DOUBLE;
+					return OBJ_DOUBLE;
 				
 				return type;
 			
 			//Arrays are coerced from LuaTables
 			case Type.ARRAY:
-				return TYPE_TABLE;
+				return OBJ_TABLE;
 				
 			default:
 				throw new IllegalArgumentException();
@@ -294,7 +283,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 				visitIfValid(nextValueBranch);
 				nextValueBranch = new Label();
 					
-				pushFrameArg(rule.paramIndex + off, TYPE_OBJECT, true);
+				pushFrameArg(rule.paramIndex + off, OBJ_OBJECT, true);
 				
 				//Check instance, if invalid jump to next type check
 				visitTypeInsn(INSTANCEOF, getCoercedType(rule.paramType).getInternalName());
@@ -354,15 +343,15 @@ public class CoercionAdapter extends GeneratorAdapter{
 	private void pushFrameArg( Type type, boolean allowNull ){
 		push(type);
 		
-		if ( allowNull )
-			visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArgNull", GET_ARG);
-		else
-			visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArg", GET_ARG);
+		String method = allowNull ? "getArgNull" : "getArg";
+		visitMethodInsn(INVOKEVIRTUAL, FRAME, method, "(ILjava/lang/Class;)Ljava/lang/Object;");
+		
+		checkCast(type);
 	}
 	
 	public void pushFrameArgCount(){
 		loadArg(frameArgIndex);
-		visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArgCount", GET_ARG_COUNT);
+		visitMethodInsn(INVOKEVIRTUAL, FRAME, "getArgCount", "()I");
 	}
 	
 	public void coerceFrameVarargs( int from, Type arrayType ){
@@ -449,96 +438,43 @@ public class CoercionAdapter extends GeneratorAdapter{
 	public void luaToVar( Type type ){
 		switch( type.getSort() ){
 			
-			//Primitives
-			case Type.BOOLEAN: // Boolean.booleanValue
-				visitTypeInsn(CHECKCAST, BOOLEAN);
-				visitMethodInsn(INVOKEVIRTUAL, BOOLEAN, "booleanValue", "()Z");
-				break;
-				
-			case Type.BYTE: // Double.byteValue
-				visitTypeInsn(CHECKCAST, DOUBLE);
-				visitMethodInsn(INVOKEVIRTUAL, DOUBLE, "byteValue", "()B");
+			case Type.BOOLEAN:
+			case Type.DOUBLE:
+				unbox(type);
 				break;
 			
-			case Type.CHAR: // String.charAt(0)
-				visitTypeInsn(CHECKCAST, STRING);
-				
-				visitInsn(ICONST_0);
-				visitMethodInsn(INVOKEVIRTUAL, STRING, "charAt", "(I)C");
+			case Type.BYTE:
+			case Type.SHORT:
+			case Type.INT:
+				unbox(INT_TYPE);
+				cast(INT_TYPE, type);
 				break;
 				
-			case Type.SHORT: // Double.shortValue
-				visitTypeInsn(CHECKCAST, DOUBLE);
-				visitMethodInsn(INVOKEVIRTUAL, DOUBLE, "shortValue", "()S");
-				break;
-				
-			case Type.INT: // Double.intValue
-				visitTypeInsn(CHECKCAST, DOUBLE);
-				visitMethodInsn(INVOKEVIRTUAL, DOUBLE, "intValue", "()I");
-				break;
-				
-			case Type.FLOAT: // Double.floatValue
-				visitTypeInsn(CHECKCAST, DOUBLE);
-				visitMethodInsn(INVOKEVIRTUAL, DOUBLE, "floatValue", "()F");
-				break;
-				
-			case Type.LONG: // Double.longValue
-				visitTypeInsn(CHECKCAST, DOUBLE);
-				visitMethodInsn(INVOKEVIRTUAL, DOUBLE, "longValue", "()J");
-				break;
-				
-			case Type.DOUBLE: // Double.doubleValue
-				visitTypeInsn(CHECKCAST, DOUBLE);
-				visitMethodInsn(INVOKEVIRTUAL, DOUBLE, "doubleValue", "()D");
+			case Type.FLOAT:
+			case Type.LONG:
+				unbox(type);
 				break;
 			
-			//Casting objects is tricky. Check for number objects
+			case Type.CHAR:
+				unbox(INT_TYPE);			//Double.intValue
+				cast(INT_TYPE, CHAR_TYPE);	//int -> char
+				break;
+				
 			case Type.OBJECT:
 				String clazz = type.getInternalName();
 				
-				//Check number classes (Extremely unlikely to happen)
-				Integer numClass = numberCoercionMap.get(clazz);
+				Type primitive = numberCoercionMap.get(clazz);
 				
-				if ( numClass != null ){
-					visitTypeInsn(CHECKCAST, DOUBLE); // Object -> Double
+				if ( primitive != null ){
+					unbox(primitive);	//Number.[int|double|float]Value
+					valueOf(primitive);	//[Int|Double|Float|...].valueOf
+				} else if ( clazz.equals(CHAR) ){
+					unbox(INT_TYPE);
+					cast(INT_TYPE, CHAR_TYPE);
 					
-					switch( numClass ){
-						case Type.BYTE: // Double -> byte -> Byte
-							visitMethodInsn(INVOKEVIRTUAL, DOUBLE, "byteValue", "()B");
-							visitMethodInsn(INVOKESTATIC, BYTE, "valueOf", "(B)Ljava/lang/Byte;");
-							break;
-							
-						case Type.SHORT: // Double -> short -> Short
-							visitMethodInsn(INVOKEVIRTUAL, DOUBLE, "shortValue", "()S");
-							visitMethodInsn(INVOKESTATIC, SHORT, "valueOf", "(S)Ljava/lang/Short;");
-							break;
-							
-						case Type.INT: // Double -> int -> Integer
-							visitMethodInsn(INVOKEVIRTUAL, DOUBLE, "intValue", "()I");
-							visitMethodInsn(INVOKESTATIC, INT, "valueOf", "(I)Ljava/lang/Integer;");
-							break;
-							
-						case Type.FLOAT: // Double -> float -> Float
-							visitMethodInsn(INVOKEVIRTUAL, DOUBLE, "floatValue", "()F");
-							visitMethodInsn(INVOKESTATIC, FLOAT, "valueOf", "(F)Ljava/lang/Float;");
-							break;
-							
-						case Type.LONG: // Double -> long -> Long
-							visitMethodInsn(INVOKEVIRTUAL, DOUBLE, "longValue", "()J");
-							visitMethodInsn(INVOKESTATIC, LONG, "valueOf", "(J)Ljava/lang/Long;");
-							break;
-					}
-				} else if ( clazz.equals(CHAR) ){ //Chars are strings in lua, use charAt(0)
-					visitTypeInsn(CHECKCAST, STRING);
-					
-					visitInsn(ICONST_0);
-					visitMethodInsn(INVOKEVIRTUAL, STRING, "charAt", "(I)C");
-				
-					visitMethodInsn(INVOKESTATIC, CHAR, "valueOf", "(C)Ljava/lang/Character;");
-				} else {
-					visitTypeInsn(CHECKCAST, clazz);
+					valueOf(CHAR_TYPE);
 				}
-
+				
 				break;
 				
 			case Type.ARRAY:
@@ -550,73 +486,40 @@ public class CoercionAdapter extends GeneratorAdapter{
 	public void varToLua( Type type ){	
 		switch( type.getSort() ){
 		
-			//Primitives
-			case Type.VOID:
-				visitInsn(ACONST_NULL);
+			case Type.BOOLEAN:
+			case Type.DOUBLE:
+				valueOf(type);
 				break;
 			
-			case Type.BOOLEAN: // boolean -> Boolean.valueOf
-				visitMethodInsn(INVOKESTATIC, BOOLEAN, 	"valueOf", "(Z)Ljava/lang/Boolean;");
-				break;
-			
-			case Type.BYTE: // byte -> Byte -> double -> Double.valueOf
-				visitMethodInsn(INVOKESTATIC, BYTE, "valueOf", "(B)Ljava/lang/Byte;");
-				visitMethodInsn(INVOKEVIRTUAL, BYTE, "doubleValue", "()D");
+			case Type.BYTE:
+			case Type.CHAR:
+			case Type.SHORT:
+			case Type.INT:
 				
-				visitMethodInsn(INVOKESTATIC, DOUBLE, "valueOf", "(D)Ljava/lang/Double;");
-				break;
-			
-			case Type.CHAR: // char -> Char -> .toString
-				visitMethodInsn(INVOKESTATIC, CHAR, "valueOf", "(C)Ljava/lang/Character;");
-				visitMethodInsn(INVOKEVIRTUAL, CHAR, "toString", "()Ljava/lang/String;");
+			case Type.FLOAT:
+			case Type.LONG:
+				cast(type, DOUBLE_TYPE);
+				valueOf(DOUBLE_TYPE);
 				break;
 				
-			case Type.SHORT: // short -> Short -> double -> Double.valueOf
-				visitMethodInsn(INVOKESTATIC, SHORT, "valueOf", "(S)Ljava/lang/Short;");
-				visitMethodInsn(INVOKEVIRTUAL, SHORT, "doubleValue", "()D");
-				
-				visitMethodInsn(INVOKESTATIC, DOUBLE, "valueOf", "(D)Ljava/lang/Double;");
-				break;
-				
-			case Type.INT: // int -> double -> Double.valueOf
-				visitInsn(I2D);
-				visitMethodInsn(INVOKESTATIC, DOUBLE, "valueOf", "(D)Ljava/lang/Double;");
-				break;
-				
-			case Type.FLOAT: // float -> double -> Double.valueOf
-				visitInsn(F2D);
-				visitMethodInsn(INVOKESTATIC, DOUBLE, "valueOf", "(D)Ljava/lang/Double;");
-				break;
-				
-			case Type.LONG: // long -> double -> Double.valueOf
-				visitInsn(L2D);
-				visitMethodInsn(INVOKESTATIC, DOUBLE, "valueOf", "(D)Ljava/lang/Double;");
-				break;
-				
-			case Type.DOUBLE: // double -> Double.valueOf
-				visitMethodInsn(INVOKESTATIC, DOUBLE, "valueOf", "(D)Ljava/lang/Double;");
-				break;
-				
-			//Casting objects is tricky. Check for number objects
 			case Type.OBJECT:
 				String clazz = type.getInternalName();
 				
-				//Check number classes (Unlikely to happen, but just in case)
 				if ( numberCoercionMap.containsKey(clazz) ){
-					visitMethodInsn(INVOKEVIRTUAL, clazz, "doubleValue", "()D");
-					visitMethodInsn(INVOKESTATIC, DOUBLE, "valueOf", "(D)Ljava/lang/Double;");
+					unbox(DOUBLE_TYPE);		//Number.doubleValue
+					valueOf(DOUBLE_TYPE);	//Double.valueOf
 				}
 				
-				//Don't let Characters sneak trough, toString them
-				if ( clazz.equals(CHAR) )
-					visitMethodInsn(INVOKEVIRTUAL, CHAR, "toString", "()Ljava/lang/String;");
-				
+				if ( clazz.equals(CHAR) ){
+					unbox(CHAR_TYPE);		//Character -> char
+					varToLua(CHAR_TYPE);	//char -> Double
+				}
 				break;
 				
-			//Casting arrays is done using for loops, and calls to varToLua
 			case Type.ARRAY:
 				arrayToTable(type);
 				break;
+
 		}
 	}
 
@@ -625,7 +528,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 		visitTypeInsn(CHECKCAST, TABLE);
 		
 		int array	= newLocal(type);
-		int table 	= newLocal(TYPE_TABLE);
+		int table 	= newLocal(OBJ_TABLE);
 		
 		int limit	= newLocal(INT_TYPE);
 		int counter	= newLocal(INT_TYPE);
@@ -634,7 +537,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 		Type cast	= getCoercedType(entry);
 		
 		if ( type.getDimensions() > 1 )
-			cast = TYPE_TABLE; //Nested arrays require a LuaTable to get coerced
+			cast = OBJ_TABLE; //Nested arrays require a LuaTable to get coerced
 		
 		/*
 		 * in table
@@ -712,7 +615,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 
 	public void arrayToTable( Type type ){
 		int array   = newLocal(type);
-		int table	= newLocal(TYPE_TABLE);
+		int table	= newLocal(OBJ_TABLE);
 		
 		int limit	= newLocal(INT_TYPE);
 		int counter	= newLocal(INT_TYPE);
@@ -742,7 +645,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 		push(0);
 		storeLocal(counter);
 		
-		newInstance(TYPE_TABLE);
+		newInstance(OBJ_TABLE);
 		dup();
 		visitMethodInsn(INVOKESPECIAL, TABLE, "<init>", "()V");
 		
