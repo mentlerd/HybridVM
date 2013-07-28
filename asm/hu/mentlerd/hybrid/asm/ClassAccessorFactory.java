@@ -2,7 +2,6 @@ package hu.mentlerd.hybrid.asm;
 
 import hu.mentlerd.hybrid.CallFrame;
 
-import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -13,12 +12,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.util.TraceClassVisitor;
-
 import static org.objectweb.asm.Opcodes.*;
 import static java.lang.reflect.Modifier.*;
 
@@ -288,9 +284,9 @@ public class ClassAccessorFactory {
 		if ( loader == null )
 			loader = ClassLoader.getSystemClassLoader();
 		
-		ClassReader reader 		= new ClassReader(cw.toByteArray());
-		TraceClassVisitor trace	= new TraceClassVisitor(new PrintWriter(System.out));
-			reader.accept(trace, 0);
+//		ClassReader reader 		= new ClassReader(cw.toByteArray());
+//		TraceClassVisitor trace	= new TraceClassVisitor(new PrintWriter(System.out));
+//			reader.accept(trace, 0);
 		
 		//Create instance
 		ClassAccessor access = Loader.createInstance(loader, cw.toByteArray(), accessName, ClassAccessor.class);
