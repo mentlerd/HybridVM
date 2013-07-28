@@ -86,18 +86,28 @@ public class LuaUtil {
 		
 		return err.getMessage();
 	}
-	
-	public static LuaException argError(int arg, String desc) {
-		return new LuaException("bad argument to #" + arg + "(" + desc + ")");
+
+	public static LuaException argError( String slot, String desc ){
+		return new LuaException("bad argument to " + slot + " (" + desc + ")" );
+	}
+	public static LuaException argError( String slot, Class<?> expected, Platform platform ){
+		return argError(slot, "expected " + platform.getTypename(expected) +", got no value");
+	}
+	public static LuaException argError( String slot, Class<?> expected, Object got, Platform platform ){
+		return argError(slot, "expected " + platform.getTypename(expected) +", got "+ platform.getTypename(got));
+	}
+
+
+	public static LuaException argError( int index, String desc ){
+		return argError("#" + index, desc);
+	}
+	public static LuaException argError( int index, Class<?> expected, Platform platform ){
+		return argError("#" + index, expected, platform);
+	}
+	public static LuaException argError( int index, Class<?> expected, Object got, Platform platform ){
+		return argError("#" + index, expected, got, platform);
 	}
 	
-	public static LuaException argError( int arg, Class<?> expected, Platform platform ){
-		return new LuaException("bad argument to #" + arg + " (expected " + platform.getTypename(expected) +", got no value)");
-	}
-	
-	public static LuaException argError( int arg, Class<?> expected, Object got, Platform platform ){
-		return new LuaException("bad argument to #" + arg + " (expected " + platform.getTypename(expected) +", got "+ platform.getTypename(got) + ")");
-	}
 	
 	/*
 	 * Thread errors

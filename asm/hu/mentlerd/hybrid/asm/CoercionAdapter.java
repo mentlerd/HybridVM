@@ -186,7 +186,13 @@ public class CoercionAdapter extends GeneratorAdapter{
 		
 		//Non static calls require an instance, and INVOKEVIRTUAL
 		if ( !isStatic ){
-			pushFrameArg(0, clazz, false);
+			loadArg(frameArgIndex);
+			
+			push0(); //Fancy error messages
+			push(clazz);
+			push("self");
+			
+			visitMethodInsn(INVOKEVIRTUAL, FRAME, "getNamedArg", "(ILjava/lang/Class;Ljava/lang/String;)Ljava/lang/Object;");			
 			checkCast(clazz);
 			
 			callType = INVOKEVIRTUAL;

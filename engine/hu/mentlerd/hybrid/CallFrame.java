@@ -278,4 +278,15 @@ public class CallFrame{
 		return number.intValue();
 	}
 	
+	public <T> T getNamedArg(int n, Class<T> clazz, String slot){
+		if ( argCount <= n )
+			throw LuaUtil.argError(slot, clazz, coroutine.platform);
+		
+		Object arg = get(n);
+		if ( arg == null || !clazz.isAssignableFrom( arg.getClass() ) )
+			throw LuaUtil.argError(slot, clazz, arg, coroutine.platform);
+			
+		return clazz.cast(arg);
+	}
+	
 }
