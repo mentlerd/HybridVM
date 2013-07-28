@@ -542,7 +542,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 				break;
 				
 			case Type.ARRAY:
-				arrayToTable(type);
+				tableToArray(type);
 				break;
 		}
 	}
@@ -615,13 +615,13 @@ public class CoercionAdapter extends GeneratorAdapter{
 				
 			//Casting arrays is done using for loops, and calls to varToLua
 			case Type.ARRAY:
-				tableToArray(type);
+				arrayToTable(type);
 				break;
 		}
 	}
 
 	
-	public void arrayToTable( Type type ){
+	public void tableToArray( Type type ){
 		visitTypeInsn(CHECKCAST, TABLE);
 		
 		int array	= newLocal(type);
@@ -710,7 +710,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 		loadLocal(array);
 	}
 
-	public void tableToArray( Type type ){
+	public void arrayToTable( Type type ){
 		int array   = newLocal(type);
 		int table	= newLocal(TYPE_TABLE);
 		
