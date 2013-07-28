@@ -18,6 +18,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.GeneratorAdapter;
 
 import static org.objectweb.asm.Opcodes.*;
+import static org.objectweb.asm.Type.*;
 
 public class CoercionAdapter extends GeneratorAdapter{
 
@@ -165,7 +166,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 	}
 
 	
-	
+	//Instance
 	protected int frameArgIndex = -1;
 	
 	public CoercionAdapter(MethodVisitor mv, int access, String name, String desc) {
@@ -541,91 +542,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 				break;
 				
 			case Type.ARRAY:
-				visitTypeInsn(CHECKCAST, TABLE);
-				
-				int table 	= newLocal(TYPE_TABLE);
-				int array	= newLocal(type);
-				
-				int limit	= newLocal(Type.INT_TYPE);
-				int counter	= newLocal(Type.INT_TYPE);
-				
-				Type entry	= getEntryType(type);
-				Type cast	= getCoercedType(entry);
-				
-				if ( type.getDimensions() > 1 )
-					cast = TYPE_TABLE; //Nested arrays require a LuaTable to get coerced
-				
-				/*
-				 * in table
-				 * 
-				 * limit = table.maxN()
-				 * array = array[limit]
-				 * 
-				 * for ( int i = 0; i < limit; i++ )
-				 *     array[i] = luaToVar( table.rawget( i +1 ) )
-				 *     
-				 * return array
-				 */
-				
-				Label loopBody	= new Label();
-				Label loopEnd	= new Label();
-				
-				Label valid		= new Label();
-				
-				//Loop init
-				visitInsn(DUP);
-				storeLocal(table);
-				
-				visitMethodInsn(INVOKEVIRTUAL, TABLE, "maxN", "()I");
-				visitInsn(DUP);
-				storeLocal(limit);
-				
-				newArray(entry); // new array[maxN()]
-				storeLocal(array);
-				
-				visitInsn(ICONST_0);
-				storeLocal(counter);
-				
-				visitJumpInsn(GOTO, loopEnd);
-				
-				//Loop body
-				visitLabel(loopBody);
-				
-				// array[i] = luaToVar( table.rawget( i +1 ) )
-				loadLocal(array);
-				loadLocal(counter);
-				
-				loadLocal(table);
-				loadLocal(counter);
-				visitInsn(ICONST_1);
-				visitInsn(IADD);	
-				visitMethodInsn(INVOKEVIRTUAL, TABLE, "rawget", "(I)Ljava/lang/Object;");
-				
-				//Check validity
-				visitInsn(DUP);
-				visitTypeInsn(INSTANCEOF, cast.getInternalName());
-				
-				visitJumpInsn(IFNE, valid);
-				throwException(EXCEPTION, "Unable to coerce to array. Value could not be coerced to descriptor: " + entry );
-				
-				visitLabel(valid);
-				
-				//Coerce, store
-				luaToVar(entry);
-				arrayStore(entry);
-			
-				iinc(counter, 1);
-				
-				//Loop end
-				visitLabel(loopEnd);
-				
-				loadLocal(counter);
-				loadLocal(limit);
-	
-				visitJumpInsn(IF_ICMPLT, loopBody);
-				
-				//'Return'
-				loadLocal(array);
+				arrayToTable(type);
 				break;
 		}
 	}
@@ -698,71 +615,172 @@ public class CoercionAdapter extends GeneratorAdapter{
 				
 			//Casting arrays is done using for loops, and calls to varToLua
 			case Type.ARRAY:
-				int array   = newLocal(type);
-				int counter = newLocal(Type.INT_TYPE);
-				int table	= newLocal(TYPE_TABLE);
-				
-				Type entry	= getEntryType(type);
-				
-				/*
-				 * in array
-				 * 
-				 * table = new table
-				 * for ( int i = 0; i < array.length; i++ )
-				 *     table.rawset( i +1, varToLua( array[i] ) )
-				 *     
-				 * return table
-				 */
-				
-				Label loopBody	= new Label();
-				Label loopEnd	= new Label();
-				
-				//Loop init
-				storeLocal(array);
-				
-				visitInsn(ICONST_0);
-				storeLocal(counter);
-				
-				visitTypeInsn(NEW, TYPE_TABLE.getInternalName());
-				visitInsn(DUP);
-				visitMethodInsn(INVOKESPECIAL, TABLE, "<init>", "()V");
-				
-				storeLocal(table);
-				
-				visitJumpInsn(GOTO, loopEnd);
-				
-				//Loop body
-				visitLabel(loopBody);
-				
-				// table.rawset( counter +1, varToLua( array[counter] ) )
-				loadLocal(table);
-				
-				loadLocal(counter);
-				visitInsn(ICONST_1);
-				visitInsn(IADD);
-				
-				loadLocal(array);
-				loadLocal(counter);
-				arrayLoad(entry);
-				varToLua(entry);
-				
-				visitMethodInsn(INVOKEVIRTUAL, TABLE, "rawset", "(ILjava/lang/Object;)V");
-			
-				iinc(counter, 1);
-				
-				//Loop end
-				visitLabel(loopEnd);
-				
-				loadLocal(counter);
-				loadLocal(array);
-				arrayLength();
-				
-				visitJumpInsn(IF_ICMPLT, loopBody);
-				
-				//'Return'
-				loadLocal(table);
+				tableToArray(type);
 				break;
 		}
 	}
 
+	
+	public void arrayToTable( Type type ){
+		visitTypeInsn(CHECKCAST, TABLE);
+		
+		int array	= newLocal(type);
+		int table 	= newLocal(TYPE_TABLE);
+		
+		int limit	= newLocal(INT_TYPE);
+		int counter	= newLocal(INT_TYPE);
+		
+		Type entry	= getEntryType(type);
+		Type cast	= getCoercedType(entry);
+		
+		if ( type.getDimensions() > 1 )
+			cast = TYPE_TABLE; //Nested arrays require a LuaTable to get coerced
+		
+		/*
+		 * in table
+		 * 
+		 * limit = table.maxN()
+		 * array = array[limit]
+		 * 
+		 * for ( int i = 0; i < limit; i++ )
+		 *     array[i] = luaToVar( table.rawget( i +1 ) )
+		 *     
+		 * return array
+		 */
+		
+		Label loopBody	= new Label();
+		Label loopEnd	= new Label();
+		
+		Label valid		= new Label();
+		
+		//Loop init
+		dup();
+		storeLocal(table);
+		
+		visitMethodInsn(INVOKEVIRTUAL, TABLE, "maxN", "()I");
+		dup();
+		storeLocal(limit);
+		
+		newArray(entry); // new array[maxN()]
+		storeLocal(array);
+		
+		push(0);
+		storeLocal(counter);
+		
+		goTo(loopEnd);
+		
+		//Loop body
+		visitLabel(loopBody);
+		
+		// array[i] = luaToVar( table.rawget( i +1 ) )
+		loadLocal(array);
+		loadLocal(counter);
+		
+		loadLocal(table);
+		loadLocal(counter);
+		
+		push(1);
+		math(ADD, INT_TYPE);
+		visitMethodInsn(INVOKEVIRTUAL, TABLE, "rawget", "(I)Ljava/lang/Object;");
+		
+		//Check validity
+		dup();
+		instanceOf(cast);
+		
+		ifZCmp(IFNE, valid);
+		throwException(EXCEPTION, "Unable to coerce to array. Value could not be coerced to descriptor: " + entry );
+		
+		visitLabel(valid);
+		
+		//Coerce, store
+		luaToVar(entry);
+		arrayStore(entry);
+	
+		iinc(counter, 1);
+		
+		//Loop end
+		visitLabel(loopEnd);
+		
+		loadLocal(counter);
+		loadLocal(limit);
+
+		ifICmp(LT, loopBody);
+		
+		//'Return'
+		loadLocal(array);
+	}
+
+	public void tableToArray( Type type ){
+		int array   = newLocal(type);
+		int table	= newLocal(TYPE_TABLE);
+		
+		int limit	= newLocal(INT_TYPE);
+		int counter	= newLocal(INT_TYPE);
+		
+		Type entry	= getEntryType(type);
+		
+		/*
+		 * in array
+		 * 
+		 * table = new table
+		 * for ( int i = 0; i < array.length; i++ )
+		 *     table.rawset( i +1, varToLua( array[i] ) )
+		 *     
+		 * return table
+		 */
+		
+		Label loopBody	= new Label();
+		Label loopEnd	= new Label();
+				
+		//Loop init
+		dup();
+		storeLocal(array);
+		
+		arrayLength();
+		storeLocal(limit);
+		
+		push(0);
+		storeLocal(counter);
+		
+		newInstance(TYPE_TABLE);
+		dup();
+		visitMethodInsn(INVOKESPECIAL, TABLE, "<init>", "()V");
+		
+		storeLocal(table);
+		
+		goTo(loopEnd);
+		
+		//Loop body
+		visitLabel(loopBody);
+		
+		// table.rawset( counter +1, varToLua( array[counter] ) )
+		loadLocal(table);
+		
+		loadLocal(counter);
+		push(1);
+		math(ADD, INT_TYPE);
+		
+		loadLocal(array);
+		loadLocal(counter);
+		arrayLoad(entry);
+		
+		varToLua(entry);
+		
+		visitMethodInsn(INVOKEVIRTUAL, TABLE, "rawset", "(ILjava/lang/Object;)V");
+	
+		iinc(counter, 1);
+		
+		//Loop end
+		visitLabel(loopEnd);
+		
+		loadLocal(counter);
+		loadLocal(array);
+		arrayLength();
+		
+		ifICmp(LT, loopBody);
+		
+		//'Return'
+		loadLocal(table);
+	}
+	
 }
