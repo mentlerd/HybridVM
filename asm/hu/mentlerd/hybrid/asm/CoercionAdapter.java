@@ -163,6 +163,16 @@ public class CoercionAdapter extends GeneratorAdapter{
 		super(cw.visitMethod(access, name, desc, null, null), access, name, desc);
 	}
 	
+	//Utility
+	private void push0(){ visitInsn(ICONST_0); }
+	private void push1(){ visitInsn(ICONST_1); }
+	
+	private void visitIfValid(Label label) {
+		if ( label != null )
+			visitLabel(label);
+	}
+
+	//Java calls
 	public void callJava( Type clazz, Method method ){
 		boolean isStatic	= isStatic(method);
 		
@@ -217,32 +227,18 @@ public class CoercionAdapter extends GeneratorAdapter{
 			varToLua(rType); //Coerce return, and push on CallFrame
 			popToFrame();
 			
-			visitInsn(ICONST_1);
+			push1();
 		} else {
-			visitInsn(ICONST_0);
+			push0();
 		}	
 	}
 
-	public void callJava( Type clazz, List<Method> methods ){
+	public void callOverload( Type clazz, List<Method> methods ){
 		List<OverloadRule> rules = OverloadResolver.resolve(methods);
 		
 		OverloadRule lastRule = rules.get( rules.size() -1 );
 		
 		boolean isStatic	= isStatic( lastRule.method );
-		
-		String owner	= clazz.getInternalName();
-		
-		int callType	= INVOKESTATIC;
-		int off			= 0;
-		
-		//Non static calls require an instance, and INVOKEVIRTUAL
-		if ( !isStatic ){
-			pushFrameArg(0, clazz, false);
-			checkCast(clazz);
-			
-			callType = INVOKEVIRTUAL;
-			off = 1;
-		}
 		
 		//Start processing rules, and storing variables
 		int lastParamCount 		= -1;
@@ -270,44 +266,25 @@ public class CoercionAdapter extends GeneratorAdapter{
 				push(paramCount);
 				loadLocal(argCount);
 				
-				visitJumpInsn(IF_ICMPLT, nextArgBranch);
+				ifICmp(LT, nextArgBranch);
 			}
 			
 			if ( rule.paramType != null ){ //Check argument class
 				visitIfValid(nextValueBranch);
 				nextValueBranch = new Label();
 					
-				pushFrameArg(rule.paramIndex + off, OBJ_OBJECT, true);
+				pushFrameArg(rule.paramIndex + (isStatic ? 0 : 1), OBJ_OBJECT, true);
 				
 				//Check instance, if invalid jump to next type check
-				visitTypeInsn(INSTANCEOF, getCoercedType(rule.paramType).getInternalName());
+				instanceOf(getCoercedType(rule.paramType));
 				
-				visitJumpInsn(IFEQ, nextValueBranch);
+				ifZCmp(IFEQ, nextValueBranch);
 			}
 			
 			//Everything passed. Extract parameters from locals, and the frame
-			Method method	= rule.method;
-			Type[] pTypes 	= Type.getArgumentTypes(method);
+			callJava(clazz, rule.method);
 			
-			for ( int index = 0; index < paramCount; index++ )
-				coerceFrameArg(index + off, pTypes[index]);
-			
-			//Call
-			visitMethodInsn(callType, owner, method.getName(), Type.getMethodDescriptor(method));
-			
-			//Check if there are arguments to return
-			Type rType = Type.getReturnType(method);
-			
-			if ( rType != Type.VOID_TYPE ) {
-				varToLua(rType); //Coerce return, and push on CallFrame
-				popToFrame();
-				
-				visitInsn(ICONST_1);
-			} else {
-				visitInsn(ICONST_0);
-			}	
-			
-			visitJumpInsn(GOTO, finish);
+			goTo(finish);
 			
 			//Prepare next rule
 			lastParamCount = paramCount;
@@ -322,25 +299,13 @@ public class CoercionAdapter extends GeneratorAdapter{
 		//Finish
 		visitLabel(finish);
 	}
-	
-	private void visitIfValid(Label label) {
-		if ( label != null )
-			visitLabel(label);
-	}
-	
+		
+	//Frame access
 	public void pushFrameArg( int index, Type type, boolean allowNull ){
 		loadArg(frameArgIndex);
 		push(index);
 		
 		pushFrameArg(type, allowNull);
-	}
-	private void pushFrameArg( Type type, boolean allowNull ){
-		push(type);
-		
-		String method = allowNull ? "getArgNull" : "getArg";
-		visitMethodInsn(INVOKEVIRTUAL, FRAME, method, "(ILjava/lang/Class;)Ljava/lang/Object;");
-		
-		checkCast(type);
 	}
 	
 	public void pushFrameArgCount(){
@@ -353,6 +318,25 @@ public class CoercionAdapter extends GeneratorAdapter{
 		swap();
 		
 		visitMethodInsn(INVOKEVIRTUAL, FRAME, "push", "(Ljava/lang/Object;)V");
+	}
+	
+	//Internals
+	private void pushFrameArg( Type type, boolean allowNull ){
+		push(type);
+		
+		String method = allowNull ? "getArgNull" : "getArg";
+		visitMethodInsn(INVOKEVIRTUAL, FRAME, method, "(ILjava/lang/Class;)Ljava/lang/Object;");
+		
+		checkCast(type);
+	}
+
+	//Frame utils
+	public void coerceFrameArg( int index, Type type ){
+		Type coerced = getCoercedType(type);	
+		
+		//Pull the parameter on the stack
+		pushFrameArg(index, coerced, canCoerceNull(type));
+		luaToVar(type);
 	}
 	
 	public void coerceFrameVarargs( int from, Type arrayType ){
@@ -382,18 +366,18 @@ public class CoercionAdapter extends GeneratorAdapter{
 		pushFrameArgCount();
 		
 		push(from);
-		visitInsn(ISUB);
+		math(SUB, INT_TYPE);
 		
-		visitInsn(DUP); //frame.getArgCount() - params
+		dup(); //frame.getArgCount() - params
 		storeLocal(limit);
 		
 		newArray(entry); //new array[limit]
 		storeLocal(array);
 		
-		visitInsn(ICONST_0);
+		push0();
 		storeLocal(counter);
 		
-		visitJumpInsn(GOTO, loopEnd);
+		goTo(loopEnd);
 		
 		//Loop body
 		visitLabel(loopBody);
@@ -407,7 +391,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 		loadLocal(counter);
 		
 		push(from);
-		visitInsn(IADD);
+		math(ADD, INT_TYPE);
 		
 		pushFrameArg(getCoercedType(entry), canCoerceNull(entry));
 		
@@ -422,20 +406,13 @@ public class CoercionAdapter extends GeneratorAdapter{
 		loadLocal(counter);
 		loadLocal(limit);
 
-		visitJumpInsn(IF_ICMPLT, loopBody);
+		ifICmp(LT, loopBody);
 		
 		//'Return'
 		loadLocal(array);
 	}
-	
-	public void coerceFrameArg( int index, Type type ){
-		Type coerced = getCoercedType(type);	
-		
-		//Pull the parameter on the stack
-		pushFrameArg(index, coerced, canCoerceNull(type));
-		luaToVar(type);
-	}
-	
+
+	//Coercion
 	public void luaToVar( Type type ){
 		switch( type.getSort() ){
 			
@@ -523,10 +500,9 @@ public class CoercionAdapter extends GeneratorAdapter{
 
 		}
 	}
-
 	
 	public void tableToArray( Type type ){
-		visitTypeInsn(CHECKCAST, TABLE);
+		checkCast(OBJ_TABLE);
 		
 		int array	= newLocal(type);
 		int table 	= newLocal(OBJ_TABLE);
@@ -568,7 +544,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 		newArray(entry); // new array[maxN()]
 		storeLocal(array);
 		
-		push(0);
+		push0();
 		storeLocal(counter);
 		
 		goTo(loopEnd);
@@ -643,7 +619,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 		arrayLength();
 		storeLocal(limit);
 		
-		push(0);
+		push0();
 		storeLocal(counter);
 		
 		newInstance(OBJ_TABLE);
@@ -661,7 +637,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 		loadLocal(table);
 		
 		loadLocal(counter);
-		push(1);
+		push1();
 		math(ADD, INT_TYPE);
 		
 		loadLocal(array);

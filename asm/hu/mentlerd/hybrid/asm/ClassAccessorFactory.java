@@ -221,7 +221,7 @@ public class ClassAccessorFactory {
 						
 						overloads.add(entry.getKey());
 						
-						mv.callJava(clazzType, entry.getValue());
+						mv.callOverload(clazzType, entry.getValue());
 						mv.visitInsn(IRETURN);
 					}
 					
