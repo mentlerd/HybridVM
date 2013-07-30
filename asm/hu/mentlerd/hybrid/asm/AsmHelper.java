@@ -1,9 +1,16 @@
 package hu.mentlerd.hybrid.asm;
 
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+
 import org.objectweb.asm.Label;
 
 public class AsmHelper {
+	
+	public static boolean isStatic( Member member ){
+		return Modifier.isStatic( member.getModifiers() );
+	}
 	
 	public static String getAsmName( Class<?> clazz ){
 		return clazz.getName().replace(".", "/");

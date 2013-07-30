@@ -4,6 +4,7 @@ import hu.mentlerd.hybrid.CallFrame;
 import hu.mentlerd.hybrid.LuaTable;
 import hu.mentlerd.hybrid.asm.OverloadResolver.OverloadRule;
 
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
@@ -48,8 +49,8 @@ public class CoercionAdapter extends GeneratorAdapter{
 		return Type.getType( array.getInternalName().substring(1) );
 	}
 	
-	public static boolean isStatic( Method method ){
-		return Modifier.isStatic( method.getModifiers() );
+	public static boolean isStatic( Member member ){
+		return Modifier.isStatic( member.getModifiers() );
 	}
 	
 	/**
@@ -164,8 +165,8 @@ public class CoercionAdapter extends GeneratorAdapter{
 	}
 	
 	//Utility
-	private void push0(){ visitInsn(ICONST_0); }
-	private void push1(){ visitInsn(ICONST_1); }
+	public void push0(){ visitInsn(ICONST_0); }
+	public void push1(){ visitInsn(ICONST_1); }
 	
 	private void visitIfValid(Label label) {
 		if ( label != null )
@@ -186,15 +187,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 		
 		//Non static calls require an instance, and INVOKEVIRTUAL
 		if ( !isStatic ){
-			loadArg(frameArgIndex);
-			
-			push0(); //Fancy error messages
-			push(clazz);
-			push("self");
-			
-			visitMethodInsn(INVOKEVIRTUAL, FRAME, "getNamedArg", "(ILjava/lang/Class;Ljava/lang/String;)Ljava/lang/Object;");			
-			checkCast(clazz);
-			
+			pushSelfArg(clazz);
 			callType = INVOKEVIRTUAL;
 		}
 		
@@ -307,6 +300,17 @@ public class CoercionAdapter extends GeneratorAdapter{
 	}
 		
 	//Frame access
+	public void pushSelfArg( Type clazz ){
+		loadArg(frameArgIndex);
+		
+		push0(); //Fancy error messages
+		push(clazz);
+		push("self");
+		
+		visitMethodInsn(INVOKEVIRTUAL, FRAME, "getNamedArg", "(ILjava/lang/Class;Ljava/lang/String;)Ljava/lang/Object;");			
+		checkCast(clazz);
+	}
+
 	public void pushFrameArg( int index, Type type, boolean allowNull ){
 		loadArg(frameArgIndex);
 		push(index);

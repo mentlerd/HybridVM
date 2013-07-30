@@ -31,7 +31,7 @@ public class AsmPlatform extends JmePlatform{
 	protected AsmIndex __index = new AsmIndex(this);
 	
 	public LuaTable loadAsLib( String name, Class<?> clazz ){
-		ClassAccessor access = ClassAccessorFactory.create(clazz);
+		ClassAccess access = ClassAccessFactory.create(clazz);
 		LuaTable lib = MetaFactory.wrapMethods(access, new LuaTable(), true);
 		
 		env.rawset(name, lib);

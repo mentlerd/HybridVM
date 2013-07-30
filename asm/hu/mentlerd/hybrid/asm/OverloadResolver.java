@@ -3,15 +3,21 @@ package hu.mentlerd.hybrid.asm;
 import java.lang.reflect.Method;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.objectweb.asm.Type;
 
 public class OverloadResolver implements Comparator<Method>{
+	
+	private static int getMethodKey( Method method ){
+		int mods = method.getModifiers();
+		
+		return method.getName().hashCode() ^ mods; 
+	}
 	
 	public static class OverloadRule{
 		public int paramCount;
@@ -68,36 +74,24 @@ public class OverloadResolver implements Comparator<Method>{
 	}
 	
 	
-	public static Map<String, List<Method>> mapOverloaded( List<Method> methods ){
-		HashMap<String, List<Method>> map = new HashMap<String, List<Method>>();
+	public static Collection<List<Method>> mapMethods( List<Method> methods ){
+		HashMap<Integer, List<Method>> map = new HashMap<Integer, List<Method>>();
 		
 		//Group methods by name
 		for ( Method method : methods ){
-			String name = method.getName();
-			List<Method> list = map.get(name);
+			Integer key = getMethodKey(method);
+			List<Method> list = map.get(key);
 			
 			if ( list == null ) //Lazy init
-				map.put(name, list = new ArrayList<Method>());
+				map.put(key, list = new ArrayList<Method>());
 			
 			list.add(method);
 		}
-		
-		//Remove single methods from the map
-		List<String> remove = new ArrayList<String>();
-		
-		for ( String name : map.keySet() ){
-			List<Method> overloads = map.get(name);
 			
-			resolveOverrides(overloads);
-			
-			if ( overloads.size() < 2 )
-				remove.add(name);
-		}
+		for ( Integer id : map.keySet() )
+			resolveOverrides( map.get(id) );
 		
-		for ( String key : remove )
-			map.remove(key);
-		
-		return map;
+		return map.values();
 	}
 	
 	private static void resolveOverrides( List<Method> methods ){
