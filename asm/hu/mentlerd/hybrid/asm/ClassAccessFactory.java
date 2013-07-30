@@ -130,6 +130,11 @@ public class ClassAccessFactory {
 						
 						Field field = fields.get(index);
 						
+						if ( AsmHelper.isFinal(field) ){
+							mv.goTo(sDefault);
+							continue;
+						}
+						
 						Type type	= Type.getType( field.getType() );
 						String name	= field.getName();
 						
@@ -154,7 +159,7 @@ public class ClassAccessFactory {
 					mv.visitLabel(sDefault);
 				}
 			
-				mv.throwException(EXCEPTION, "Invaid field index");
+				mv.throwException(EXCEPTION, "Illegal field access");
 				mv.visitMaxs(0, 0);
 			mv.visitEnd();
 		}
@@ -204,7 +209,7 @@ public class ClassAccessFactory {
 					mv.visitLabel(sDefault);
 				}
 			
-				mv.throwException(EXCEPTION, "Invaid field index");
+				mv.throwException(EXCEPTION, "Illegal field access");
 				mv.visitMaxs(0, 0);
 			mv.visitEnd();
 		}
@@ -256,7 +261,7 @@ public class ClassAccessFactory {
 					mv.visitLabel(sDefault);
 				}
 			
-				mv.throwException(EXCEPTION, "Invaid method index");
+				mv.throwException(EXCEPTION, "Illegal method access");
 				mv.visitMaxs(0, 0);
 			mv.visitEnd();
 		}

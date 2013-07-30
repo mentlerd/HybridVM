@@ -11,6 +11,11 @@ public class AsmHelper {
 	public static boolean isStatic( Member member ){
 		return Modifier.isStatic( member.getModifiers() );
 	}
+	public static boolean isFinal( Member member ){
+		return Modifier.isFinal( member.getModifiers() );
+	}
+	
+	
 	protected static String getMethodSource( Member member ){
 		return member.getName() + "@" + member.getDeclaringClass().getSimpleName();
 	}
