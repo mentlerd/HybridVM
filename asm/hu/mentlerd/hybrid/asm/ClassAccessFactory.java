@@ -53,10 +53,17 @@ public class ClassAccessFactory {
 	}
 	
 	protected static int countMethods( Collection<List<Method>> map ){
-		int count = map.size();
+		int count = 0;
 		
-		for ( List<Method> list : map )
-			count += list.size() -1;
+		for ( List<Method> list : map ){
+			int size = list.size();
+			
+			if ( size > 1 ){
+				count += size +1;
+			} else {
+				count++;
+			}
+		}
 		
 		return count;
 	}

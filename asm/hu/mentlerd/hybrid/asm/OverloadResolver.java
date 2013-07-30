@@ -183,9 +183,15 @@ public class OverloadResolver implements Comparator<Method>{
 			
 			if ( aInterface != bInterface ) //Interfaces override objects by default
 				return aInterface ? -1 : 1;
-				
-			if ( aParam.isAssignableFrom(bParam) ) return -1;
-			if ( bParam.isAssignableFrom(aParam) ) return  1;
+			
+			boolean aPrimitive = aParam.isPrimitive(); //Primitives override objects
+			boolean bPrimitive = bParam.isPrimitive();
+			
+			if ( aPrimitive != bPrimitive )
+				return aPrimitive ? -1 : 1;
+			
+			if ( aParam.isAssignableFrom(bParam) ) return  1;
+			if ( bParam.isAssignableFrom(aParam) ) return -1;
 			
 			return aParam.hashCode() - bParam.hashCode();
 		}
