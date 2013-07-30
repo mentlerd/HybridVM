@@ -249,6 +249,12 @@ public class CoercionAdapter extends GeneratorAdapter{
 		
 		//Extract frame.getArgCount
 		pushFrameArgCount();
+
+		if ( !isStatic ){
+			push1();
+			math(SUB, INT_TYPE);
+		}
+		
 		storeLocal(argCount);
 
 		//Create branches based off rules
