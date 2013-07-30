@@ -1084,12 +1084,12 @@ public class LuaThread {
 	public Object tostring( Object value ){
 		if ( value == null )
 			return "nil";
-			
-		if ( value instanceof Boolean || value instanceof Double )
-			return value.toString();
-		
+
 		if ( value instanceof String )
 			return (String) value;
+		
+		if ( value instanceof Boolean || value instanceof Double )
+			return value.toString();
 		
 		if ( isCallable(value) )
 			return "function: " + System.identityHashCode(value);
