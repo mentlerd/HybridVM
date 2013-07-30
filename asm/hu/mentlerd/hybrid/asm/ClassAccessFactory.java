@@ -183,7 +183,7 @@ public class ClassAccessFactory {
 						Type type	= Type.getType( field.getType() );
 						String name	= field.getName();
 						
-						boolean isStatic = CoercionAdapter.isStatic(field);
+						boolean isStatic = AsmHelper.isStatic(field);
 						
 						if ( isStatic ){
 							mv.coerceFrameArg(1, type);

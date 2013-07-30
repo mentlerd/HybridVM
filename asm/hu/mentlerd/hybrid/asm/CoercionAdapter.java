@@ -4,10 +4,7 @@ import hu.mentlerd.hybrid.CallFrame;
 import hu.mentlerd.hybrid.LuaTable;
 import hu.mentlerd.hybrid.asm.OverloadResolver.OverloadRule;
 
-import java.lang.reflect.Member;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,9 +46,6 @@ public class CoercionAdapter extends GeneratorAdapter{
 		return Type.getType( array.getInternalName().substring(1) );
 	}
 	
-	public static boolean isStatic( Member member ){
-		return Modifier.isStatic( member.getModifiers() );
-	}
 	
 	/**
 	 * Tells if a null value can be coerced into the target class
@@ -175,7 +169,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 
 	//Java calls
 	public void callJava( Type clazz, Method method ){
-		boolean isStatic	= isStatic(method);
+		boolean isStatic	= AsmHelper.isStatic(method);
 		
 		boolean isSpecial	= isMethodSpecial(method);
 		boolean isVararg	= method.isVarArgs();
@@ -237,7 +231,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 		
 		OverloadRule lastRule = rules.get( rules.size() -1 );
 		
-		boolean isStatic	= isStatic( lastRule.method );
+		boolean isStatic = AsmHelper.isStatic( lastRule.method );
 		
 		//Start processing rules, and storing variables
 		int lastParamCount 		= -1;
