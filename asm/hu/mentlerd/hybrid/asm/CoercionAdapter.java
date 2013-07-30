@@ -183,6 +183,9 @@ public class CoercionAdapter extends GeneratorAdapter{
 		if ( !isStatic ){
 			pushSelfArg(clazz);
 			callType = INVOKEVIRTUAL;
+			
+			if ( AsmHelper.isInterfaceMethod(method) )
+				callType = INVOKEINTERFACE;
 		}
 		
 		//Extract parameters to the stack
@@ -244,9 +247,10 @@ public class CoercionAdapter extends GeneratorAdapter{
 		//Extract parameter count
 		int argCount = newLocal(Type.INT_TYPE);
 		
+		//Extract frame.getArgCount
 		pushFrameArgCount();
 		storeLocal(argCount);
-		
+
 		//Create branches based off rules
 		for ( OverloadRule rule : rules ){
 			int paramCount = rule.paramCount;
@@ -265,7 +269,7 @@ public class CoercionAdapter extends GeneratorAdapter{
 			if ( rule.paramType != null ){ //Check argument class
 				visitIfValid(nextValueBranch);
 				nextValueBranch = new Label();
-					
+				
 				pushFrameArg(rule.paramIndex + (isStatic ? 0 : 1), OBJ_OBJECT, true);
 				
 				//Check instance, if invalid jump to next type check

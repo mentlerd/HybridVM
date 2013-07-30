@@ -15,6 +15,9 @@ public class AsmHelper {
 		return Modifier.isFinal( member.getModifiers() );
 	}
 	
+	public static boolean isInterfaceMethod( Method method ){
+		return method.getDeclaringClass().isInterface();
+	}
 	
 	protected static String getMethodSource( Member member ){
 		return member.getName() + "@" + member.getDeclaringClass().getSimpleName();

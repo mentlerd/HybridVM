@@ -39,20 +39,35 @@ public class AsmPlatform extends JmePlatform{
 	}
 	
 	public Object indexObject( Class<?> clazz, Object index ){
-		while ( clazz != Object.class ){
-			LuaTable meta = metatables.get(clazz);
+		Class<?> parent = clazz;
+		
+		while ( parent != Object.class ){	
+			Object value = getClassMetavalue(clazz, index);
 			
-			if ( meta != null ){
-				Object value = meta.rawget(index);
-				
-				if ( value != null )
-					return value;
-			}
+			if ( value != null )
+				return value;
+						
+			parent = parent.getSuperclass();
+		}
+		
+		//Check interfaces
+		for ( Class<?> interf : clazz.getInterfaces() ){
+			Object value = getClassMetavalue(interf, index);
 			
-			clazz = clazz.getSuperclass();
+			if ( value != null )
+				return value;
 		}
 		
 		return null;
+	}
+	
+	public Object getClassMetavalue(Class<?> clazz, Object index) {
+		LuaTable meta = getClassMetatable(clazz);
+		
+		if ( meta == null )
+			return null;
+		
+		return meta.rawget(index);
 	}
 	
 	public Object getClassMetavalue(Class<?> clazz, String index) {
