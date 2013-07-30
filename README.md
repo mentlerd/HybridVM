@@ -15,6 +15,16 @@ on the classpath. ( The asm, and asm-commons jars. Grab them from: http://asm.ow
 
 The target platform is Java 1.6, hence the excessive use of generics.
 
+ASM Access Generation
+=======
+BE WARNED, if you wrap a List<T>, Map<K, V>, or other generic based object with MetaFactory,
+it might cause unexpected behavior, as java generics are lost during compile time, there is
+a way for scripts to bypass the typecheck, and cause unexpected ClassCastExceptions!
+
+(This behavior is the same with reflection, therefore no other engines can protect you from such 'attacks')
+
+It is advised to have custom classes without generic parameters.
+
 License
 =======
 
