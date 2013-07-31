@@ -72,6 +72,14 @@ public class ClassAccessFactory {
 	protected static Map<Class<?>, ClassAccess> instances = new HashMap<Class<?>, ClassAccess>();
 
 	public static ClassAccess create( Class<?> clazz ){
+		
+		/*
+		 * Check if the target class utilizes type parameter generics, because ASM generated
+		 *  classes in fact CAN BYPASS TYPE SAFETY! causing unexpected ClassCast exceptions 
+		 */
+		if ( clazz.getTypeParameters().length > 0 )
+			throw new IllegalArgumentException("Class has generic type parameters!");
+		
 		ClassAccess result = instances.get(clazz);
 
 		if ( result == null )
