@@ -297,7 +297,7 @@ public class LuaThread {
 						Object key 		= getRK(frame, C, proto);
 
 						//Check if it is valid to index the value
-						boolean isTable = table instanceof LuaTable;
+						boolean isTable = table instanceof Indexable;
 						
 						if ( !isTable && getMetaValue(table, "__index") == null )
 							throw LuaUtil.slotError(frame, B, "attempt to index");
@@ -331,7 +331,7 @@ public class LuaThread {
 						Object value 	= getRK(frame, C, proto);
 
 						//Check if it is valid to index the value
-						boolean isTable = table instanceof LuaTable;
+						boolean isTable = table instanceof Indexable;
 						
 						if ( !isTable && getMetaValue(table, "__index") == null )
 							throw LuaUtil.slotError(frame, A, "attempt to index");
@@ -960,10 +960,10 @@ public class LuaThread {
 		Object cTable = table;
 		
 		for ( int depth = 0; depth < MAX_INDEX_RECURSION; depth++ ){
-			boolean isTable = ( cTable instanceof LuaTable );
+			boolean isTable = ( cTable instanceof Indexable );
 			
 			if ( isTable ){
-				Object value = ((LuaTable) cTable).rawget(key);
+				Object value = ((Indexable) cTable).rawget(key);
 				
 				if ( value != null )
 					return value;
@@ -992,8 +992,8 @@ public class LuaThread {
 		for ( int depth = 0; depth < MAX_INDEX_RECURSION; depth++ ){
 			Object meta = null;
 			
-			if ( cTable instanceof LuaTable ){
-				LuaTable tbl = (LuaTable) cTable;
+			if ( cTable instanceof Indexable ){
+				Indexable tbl = (Indexable) cTable;
 				
 				//If set or __newindex == null
 				if ( tbl.rawget(key) != null || (meta = getMetaValue(cTable, "__newindex")) == null ){

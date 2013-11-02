@@ -13,9 +13,9 @@ public class MathLib {
 		return bind( new LuaTable() );
 	}
 	public static LuaTable bind( LuaTable into ){
-		into.rawset("e",		Math.E);
+		into.rawset("e",	Math.E);
 		into.rawset("pi", 	Math.PI);
-			
+		
 		into.rawset("huge",	Double.POSITIVE_INFINITY);
 		
 		OneArgMath.bind(into);

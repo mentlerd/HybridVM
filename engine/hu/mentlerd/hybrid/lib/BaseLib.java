@@ -2,6 +2,7 @@ package hu.mentlerd.hybrid.lib;
 
 import hu.mentlerd.hybrid.CallFrame;
 import hu.mentlerd.hybrid.Callable;
+import hu.mentlerd.hybrid.Indexable;
 import hu.mentlerd.hybrid.LuaClosure;
 import hu.mentlerd.hybrid.LuaException;
 import hu.mentlerd.hybrid.LuaTable;
@@ -298,7 +299,7 @@ public enum BaseLib implements Callable{
 	},
 	RAWSET {
 		public int call(CallFrame frame, int argCount) {
-			LuaTable table	= frame.getArg(0, LuaTable.class);
+			Indexable table	= frame.getArg(0, Indexable.class);
 			
 			Object key		= frame.getArg(1);
 			Object value	= frame.getArg(2);
@@ -309,7 +310,7 @@ public enum BaseLib implements Callable{
 	},
 	RAWGET {
 		public int call(CallFrame frame, int argCount) {
-			LuaTable table	= frame.getArg(0, LuaTable.class);
+			Indexable table	= frame.getArg(0, Indexable.class);
 			Object key		= frame.getArg(1);
 			
 			frame.push( table.rawget(key) );

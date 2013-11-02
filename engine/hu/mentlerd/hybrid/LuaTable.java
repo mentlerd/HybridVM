@@ -2,7 +2,7 @@ package hu.mentlerd.hybrid;
 
 import java.util.Iterator;
 
-public class LuaTable implements Iterable<Object>{
+public class LuaTable implements Indexable, Iterable<Object>{
 
 	protected static class TableIterator implements Iterator<Object>{
 		protected LuaTable table;	
